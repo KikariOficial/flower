@@ -1,98 +1,114 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import React from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar } from 'react-native';
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF9E6" />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* ========================================== */}
+      {/* TOPO: Menu e Botão de Adicionar Tarefas    */}
+      {/* ========================================== */}
+      <View style={styles.topBar}>
+        <TouchableOpacity>
+          <Text style={styles.iconText}>≡</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity>
+          <Text style={styles.iconText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ========================================== */}
+      {/* CENTRO: A Planta e o Sol                   */}
+      {/* ========================================== */}
+      <View style={styles.centerArea}>
+        <Text style={styles.sunIcon}>☀️</Text>
+        
+        <Text style={styles.plantIcon}>🪴</Text>
+        <Text style={styles.statusText}>Vaso pronto para a semente!</Text>
+      </View>
+
+      {/* ========================================== */}
+      {/* BASE: Regador e Barra de Água              */}
+      {/* ========================================== */}
+      <View style={styles.bottomArea}>
+        <TouchableOpacity>
+          <Text style={styles.wateringCanIcon}>🚿</Text>
+        </TouchableOpacity>
+        
+        <Text style={styles.waterLabel}>WATER</Text>
+        
+        <View style={styles.progressBarBackground}>
+          <View style={styles.progressBarFill} />
+        </View>
+      </View>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFF9E6', 
+    paddingTop: 60, 
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    justifyContent: 'space-between', 
   },
-  stepContainer: {
-    gap: 8,
+  topBar: {
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+  },
+  iconText: {
+    fontSize: 40,
+    color: '#8CB369', 
+    fontWeight: 'bold',
+  },
+  centerArea: {
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  sunIcon: {
+    fontSize: 80,
+    position: 'absolute', 
+    top: -60,
+    left: -20,
+    opacity: 0.8,
+  },
+  plantIcon: {
+    fontSize: 120,
+  },
+  statusText: {
+    fontSize: 18,
+    color: '#5A5A5A',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  bottomArea: {
+    alignItems: 'center',
+  },
+  wateringCanIcon: {
+    fontSize: 70,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  waterLabel: {
+    color: '#4A8DB7',
+    fontWeight: 'bold',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 20,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    width: '30%', 
+    height: '100%',
+    backgroundColor: '#4A8DB7',
   },
 });
