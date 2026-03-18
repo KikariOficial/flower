@@ -1,100 +1,115 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router'; // O nosso "táxi" para navegar entre telas
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // A nossa nova memória!
 
 export default function MetasScreen() {
-  const router = useRouter(); // Ligando o táxi
-  
-  // Memória para guardar o texto que o usuário está digitando
+  const router = useRouter();
   const [textoNovaMeta, setTextoNovaMeta] = useState('');
-  
-  // Memória para guardar a lista de metas (já deixei duas de exemplo!)
-  const [listaMetas, setListaMetas] = useState([
-    { id: '1', texto: 'Beber 2L de Água', concluida: false },
-    { id: '2', texto: 'Ler 15 páginas', concluida: false }
-  ]);
+  const [listaMetas, setListaMetas] = useState<any[]>([]);
 
-  // Função para adicionar uma nova meta
-  const adicionarMeta = () => {
-    // Só adiciona se o texto não estiver vazio
-    if (textoNovaMeta.trim() !== '') {
-      const novaMeta = {
-        id: Date.now().toString(), // Cria um ID único usando a hora atual
-        texto: textoNovaMeta,
-        concluida: false
-      };
-      
-      // O comando abaixo significa: "Pegue todas as metas que já existem (...listaMetas) e adicione a novaMeta no final"
-      setListaMetas([...listaMetas, novaMeta]);
-      setTextoNovaMeta(''); // Limpa o campo de digitação
+  // 1. Carrega as metas salvas assim que a tela abre
+  useEffect(() => {
+    carregarMetas();
+  }, []);
+
+  const carregarMetas = async () => {
+    try {
+      const metasSalvas = await AsyncStorage.getItem('listaDeMetas');
+      if (metasSalvas !== null) {
+        setListaMetas(JSON.parse(metasSalvas)); // Transforma o texto de volta em lista
+      }
+    } catch (e) {
+      console.log('Erro ao carregar metas');
     }
   };
 
-  // Função para excluir
-  const excluirMeta = (idParaExcluir: string) => {
-    // Filtra a lista, mantendo apenas as metas que NÃO tem esse ID
-    const listaAtualizada = listaMetas.filter(meta => meta.id !== idParaExcluir);
-    setListaMetas(listaAtualizada);
+  // Função auxiliar para salvar a lista na memória sempre que ela mudar
+  const salvarListaNaMemoria = async (novaLista: any[]) => {
+    setListaMetas(novaLista);
+    await AsyncStorage.setItem('listaDeMetas', JSON.stringify(novaLista));
   };
 
-  // Função para marcar como concluída (Futuramente vai dar +1 de água!)
-  const concluirMeta = (idParaConcluir: string) => {
+  const adicionarMeta = () => {
+    if (textoNovaMeta.trim() !== '') {
+      const novaMeta = {
+        id: Date.now().toString(),
+        texto: textoNovaMeta,
+        concluida: false
+      };
+      salvarListaNaMemoria([...listaMetas, novaMeta]);
+      setTextoNovaMeta('');
+    }
+  };
+
+  const excluirMeta = (idParaExcluir: string) => {
+    const listaAtualizada = listaMetas.filter(meta => meta.id !== idParaExcluir);
+    salvarListaNaMemoria(listaAtualizada);
+  };
+
+  // 2. A MÁGICA: Concluir a meta e ganhar água!
+  const concluirMeta = async (idParaConcluir: string) => {
+    // Primeiro, atualiza a caixinha para ✅
     const listaAtualizada = listaMetas.map(meta => {
-      if (meta.id === idParaConcluir) {
-        return { ...meta, concluida: true }; // Muda o status para verdadeiro
-      }
+      if (meta.id === idParaConcluir) return { ...meta, concluida: true };
       return meta;
     });
-    setListaMetas(listaAtualizada);
+    salvarListaNaMemoria(listaAtualizada);
+
+    // Segundo, dá a recompensa de água!
+    try {
+      const aguaAtualString = await AsyncStorage.getItem('aguaSalva');
+      let aguaAtual = aguaAtualString ? parseInt(aguaAtualString) : 0; // Se não tiver nada, é 0
+
+      if (aguaAtual < 10) {
+        await AsyncStorage.setItem('aguaSalva', (aguaAtual + 1).toString());
+        Alert.alert('Parabéns!', '+1 gota no seu regador 💧');
+      } else {
+        Alert.alert('Regador Cheio!', 'Volte ao jardim para regar sua planta!');
+      }
+    } catch (e) {
+      console.log('Erro ao salvar água');
+    }
   };
 
+  // O ROSTO (continua exatamente igual ao passo anterior)
   return (
     <View style={styles.container}>
       <Text style={styles.titulo}>Minhas Metas Diárias</Text>
 
-      {/* ÁREA DE DIGITAÇÃO */}
       <View style={styles.areaInput}>
         <TextInput
           style={styles.input}
           placeholder="Digite um novo hábito..."
           value={textoNovaMeta}
-          onChangeText={setTextoNovaMeta} // Atualiza a memória a cada letra digitada
+          onChangeText={setTextoNovaMeta}
         />
         <TouchableOpacity style={styles.botaoAdicionar} onPress={adicionarMeta}>
           <Text style={styles.textoBotaoAdicionar}>Adicionar</Text>
         </TouchableOpacity>
       </View>
 
-      {/* LISTA DE METAS */}
       <ScrollView style={styles.listaScroll}>
-        {/* O comando 'map' repete o desenho para cada meta na lista */}
         {listaMetas.map((meta) => (
           <View key={meta.id} style={styles.itemMeta}>
-            
-            {/* O "Botão" da Meta (A Caixinha) */}
             <TouchableOpacity 
               style={styles.areaTextoMeta} 
               onPress={() => concluirMeta(meta.id)}
-              disabled={meta.concluida} // Trava se já foi feita
+              disabled={meta.concluida}
             >
-              <Text style={styles.checkbox}>
-                {meta.concluida ? '✅' : '⬜'}
-              </Text>
+              <Text style={styles.checkbox}>{meta.concluida ? '✅' : '⬜'}</Text>
               <Text style={[styles.textoMeta, meta.concluida && styles.textoMetaConcluida]}>
                 {meta.texto}
               </Text>
             </TouchableOpacity>
 
-            {/* O Botão de Lixeira */}
             <TouchableOpacity onPress={() => excluirMeta(meta.id)}>
               <Text style={styles.iconeLixeira}>🗑️</Text>
             </TouchableOpacity>
-            
           </View>
         ))}
       </ScrollView>
 
-      {/* BOTÃO VOLTAR */}
       <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
         <Text style={styles.textoBotaoVoltar}>Voltar para o Jardim</Text>
       </TouchableOpacity>
@@ -102,6 +117,7 @@ export default function MetasScreen() {
   );
 }
 
+// O StyleSheet continua igual
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF9E6', paddingTop: 60, paddingHorizontal: 24, paddingBottom: 40 },
   titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 24 },
@@ -114,7 +130,7 @@ const styles = StyleSheet.create({
   areaTextoMeta: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   checkbox: { fontSize: 20, marginRight: 12 },
   textoMeta: { fontSize: 18, color: '#5A5A5A', flex: 1 },
-  textoMetaConcluida: { color: '#CCCCCC', textDecorationLine: 'line-through' }, // Risca o texto quando concluído!
+  textoMetaConcluida: { color: '#CCCCCC', textDecorationLine: 'line-through' },
   iconeLixeira: { fontSize: 24, paddingLeft: 12 },
   botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 8, padding: 16, alignItems: 'center' },
   textoBotaoVoltar: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 }

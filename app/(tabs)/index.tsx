@@ -1,45 +1,58 @@
-import React, { useState } from 'react'; // 1. Importamos o useState (a memória!)
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert } from 'react-native'; // Importamos o Alert para avisos na tela
-
-import { useRouter } from 'expo-router';
-
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router'; // useFocusEffect detecta quando voltamos para a tela!
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
-  
-  const router = useRouter(); // <-- LIGANDO O TÁXI AQUI!
+  const router = useRouter();
 
   const [agua, setAgua] = useState(0); 
   const [estagioPlanta, setEstagioPlanta] = useState(0); 
   const MAX_AGUA = 10;
 
-  // Modifique a função adicionarAgua para nos levar para a outra tela!
+  // 1. CARREGAR OS DADOS (Sempre que a tela aparecer)
+  useFocusEffect(
+    useCallback(() => {
+      const carregarJardim = async () => {
+        try {
+          const aguaSalva = await AsyncStorage.getItem('aguaSalva');
+          if (aguaSalva !== null) setAgua(parseInt(aguaSalva));
+
+          const estagioSalvo = await AsyncStorage.getItem('estagioPlantaSalvo');
+          if (estagioSalvo !== null) setEstagioPlanta(parseInt(estagioSalvo));
+        } catch (e) {
+          console.log('Erro ao carregar os dados do jardim');
+        }
+      };
+
+      carregarJardim();
+    }, [])
+  );
+
   const irParaMetas = () => {
-    router.push('/metas'); // O nome '/metas' tem que ser idêntico ao nome do arquivo que criamos!
+    router.push('/metas'); 
   };
 
-  // Função que roda quando clicamos no botão "+"
-  const adicionarAgua = () => {
-    if (agua < MAX_AGUA) {
-      setAgua(agua + 1); // Aumenta 1 gota. O React vai atualizar a barra de progresso sozinho!
-    } else {
-      Alert.alert('Regador Cheio!', 'Seu regador já está no limite de 10 gotas.');
-    }
-  };
-
-  // Função que roda quando clicamos no regador "🚿"
-  const regarPlanta = () => {
+  // 2. REGAR A PLANTA (E salvar o novo progresso)
+  const regarPlanta = async () => {
     if (agua > 0 && estagioPlanta < 3) {
-      setAgua(agua - 1); // Gasta 1 gota
-      setEstagioPlanta(estagioPlanta + 1); // Planta cresce!
+      const novaAgua = agua - 1;
+      const novoEstagio = estagioPlanta + 1;
+      
+      setAgua(novaAgua); 
+      setEstagioPlanta(novoEstagio); 
+
+      // Salva imediatamente para não perder!
+      await AsyncStorage.setItem('aguaSalva', novaAgua.toString());
+      await AsyncStorage.setItem('estagioPlantaSalvo', novoEstagio.toString());
+
     } else if (agua === 0) {
-      Alert.alert('Falta Água', 'Você precisa cumprir metas (clicar no +) para ter água!');
+      Alert.alert('Falta Água', 'Você precisa cumprir metas no ≡ para ter água!');
+    } else {
+      Alert.alert('Jardim Completo', 'Sua flor já desabrochou ao máximo!');
     }
   };
 
-  // ==========================================
-  // LÓGICA VISUAL: O que mostrar na tela?
-  // ==========================================
-  
   let emojiPlanta = '🪴';
   let textoStatus = 'Vaso pronto para a semente!';
 
@@ -54,12 +67,8 @@ export default function HomeScreen() {
     textoStatus = 'Seu jardim floresceu! Parabéns!';
   }
 
-  // Matemática simples para calcular a porcentagem da barra de água (Ex: 5 de água = 50%)
   const porcentagemAgua = (agua / MAX_AGUA) * 100;
 
-  // ==========================================
-  // O ROSTO: Desenhando a tela
-  // ==========================================
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF9E6" />
@@ -70,7 +79,6 @@ export default function HomeScreen() {
           <Text style={styles.iconText}>≡</Text>
         </TouchableOpacity>
         
-        {/* Adicionamos o "onPress" aqui! Ele chama a nossa função. */}
         <TouchableOpacity onPress={irParaMetas}>
           <Text style={styles.iconText}>+</Text>
         </TouchableOpacity>
@@ -79,16 +87,12 @@ export default function HomeScreen() {
       {/* CENTRO */}
       <View style={styles.centerArea}>
         <Text style={styles.sunIcon}>☀️</Text>
-        
-        {/* Agora o texto puxa a nossa variável inteligente */}
         <Text style={styles.plantIcon}>{emojiPlanta}</Text>
         <Text style={styles.statusText}>{textoStatus}</Text>
       </View>
 
       {/* BASE */}
       <View style={styles.bottomArea}>
-        
-        {/* Adicionamos o "onPress" no regador também! */}
         <TouchableOpacity onPress={regarPlanta}>
           <Text style={styles.wateringCanIcon}>🚿</Text>
         </TouchableOpacity>
@@ -96,7 +100,6 @@ export default function HomeScreen() {
         <Text style={styles.waterLabel}>WATER</Text>
         
         <View style={styles.progressBarBackground}>
-          {/* A MÁGICA DA BARRA: O tamanho agora é calculado automaticamente! */}
           <View style={[styles.progressBarFill, { width: `${porcentagemAgua}%` }]} />
         </View>
       </View>
@@ -118,5 +121,5 @@ const styles = StyleSheet.create({
   wateringCanIcon: { fontSize: 70, marginBottom: 8 },
   waterLabel: { color: '#4A8DB7', fontWeight: 'bold', letterSpacing: 2, marginBottom: 8 },
   progressBarBackground: { width: '100%', height: 20, backgroundColor: '#E0E0E0', borderRadius: 10, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#4A8DB7' }, // Tiramos o width fixo daqui
+  progressBarFill: { height: '100%', backgroundColor: '#4A8DB7' },
 });
