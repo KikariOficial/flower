@@ -1,18 +1,21 @@
 import React, { useState } from 'react'; // 1. Importamos o useState (a memória!)
 import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert } from 'react-native'; // Importamos o Alert para avisos na tela
 
+import { useRouter } from 'expo-router';
+
+
 export default function HomeScreen() {
-  // ==========================================
-  // O CÉREBRO: Criando a memória do nosso app
-  // ==========================================
   
-  // "agua" é o valor. "setAgua" é o comando para alterar o valor. Começa em 0.
+  const router = useRouter(); // <-- LIGANDO O TÁXI AQUI!
+
   const [agua, setAgua] = useState(0); 
-  
-  // 0: Vaso, 1: Semente, 2: Broto, 3: Flor
   const [estagioPlanta, setEstagioPlanta] = useState(0); 
-  
   const MAX_AGUA = 10;
+
+  // Modifique a função adicionarAgua para nos levar para a outra tela!
+  const irParaMetas = () => {
+    router.push('/metas'); // O nome '/metas' tem que ser idêntico ao nome do arquivo que criamos!
+  };
 
   // Função que roda quando clicamos no botão "+"
   const adicionarAgua = () => {
@@ -68,7 +71,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         
         {/* Adicionamos o "onPress" aqui! Ele chama a nossa função. */}
-        <TouchableOpacity onPress={adicionarAgua}>
+        <TouchableOpacity onPress={irParaMetas}>
           <Text style={styles.iconText}>+</Text>
         </TouchableOpacity>
       </View>
