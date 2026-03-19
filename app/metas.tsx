@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // A nossa nova memória!
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MetasScreen() {
   const router = useRouter();
   const [textoNovaMeta, setTextoNovaMeta] = useState('');
   const [listaMetas, setListaMetas] = useState<any[]>([]);
 
-  // 1. Carrega as metas salvas assim que a tela abre
   useEffect(() => {
     carregarMetas();
   }, []);
@@ -17,14 +16,13 @@ export default function MetasScreen() {
     try {
       const metasSalvas = await AsyncStorage.getItem('listaDeMetas');
       if (metasSalvas !== null) {
-        setListaMetas(JSON.parse(metasSalvas)); // Transforma o texto de volta em lista
+        setListaMetas(JSON.parse(metasSalvas));
       }
     } catch (e) {
       console.log('Erro ao carregar metas');
     }
   };
 
-  // Função auxiliar para salvar a lista na memória sempre que ela mudar
   const salvarListaNaMemoria = async (novaLista: any[]) => {
     setListaMetas(novaLista);
     await AsyncStorage.setItem('listaDeMetas', JSON.stringify(novaLista));
@@ -47,19 +45,16 @@ export default function MetasScreen() {
     salvarListaNaMemoria(listaAtualizada);
   };
 
-  // 2. A MÁGICA: Concluir a meta e ganhar água!
   const concluirMeta = async (idParaConcluir: string) => {
-    // Primeiro, atualiza a caixinha para ✅
     const listaAtualizada = listaMetas.map(meta => {
       if (meta.id === idParaConcluir) return { ...meta, concluida: true };
       return meta;
     });
     salvarListaNaMemoria(listaAtualizada);
 
-    // Segundo, dá a recompensa de água!
     try {
       const aguaAtualString = await AsyncStorage.getItem('aguaSalva');
-      let aguaAtual = aguaAtualString ? parseInt(aguaAtualString) : 0; // Se não tiver nada, é 0
+      let aguaAtual = aguaAtualString ? parseInt(aguaAtualString) : 0;
 
       if (aguaAtual < 10) {
         await AsyncStorage.setItem('aguaSalva', (aguaAtual + 1).toString());
@@ -72,7 +67,36 @@ export default function MetasScreen() {
     }
   };
 
-  // O ROSTO (continua exatamente igual ao passo anterior)
+  // ==========================================
+  // A NOVA MÁGICA: Começar um Novo Dia!
+  // ==========================================
+  const iniciarNovoDia = () => {
+    // 1. Cria um alerta com botões de escolha
+    Alert.alert(
+      'Começar Novo Dia',
+      'Deseja desmarcar todas as metas para começar de novo?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel', // Fica com uma cor mais suave, indicando que cancela a ação
+        },
+        {
+          text: 'Sim, começar!',
+          onPress: () => {
+            // 2. Se o usuário disser "Sim", nós refazemos a lista com tudo "false"
+            const listaResetada = listaMetas.map(meta => ({
+              ...meta,
+              concluida: false
+            }));
+            
+            salvarListaNaMemoria(listaResetada); // Salva na memória!
+            Alert.alert('Bom dia!', 'Suas metas foram renovadas para hoje. 🌱');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.titulo}>Minhas Metas Diárias</Text>
@@ -110,6 +134,12 @@ export default function MetasScreen() {
         ))}
       </ScrollView>
 
+      {/* NOVO BOTÃO DE RESET */}
+      <TouchableOpacity style={styles.botaoNovoDia} onPress={iniciarNovoDia}>
+        <Text style={styles.textoBotaoNovoDia}>🌅 Começar um Novo Dia</Text>
+      </TouchableOpacity>
+
+      {/* BOTÃO VOLTAR */}
       <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
         <Text style={styles.textoBotaoVoltar}>Voltar para o Jardim</Text>
       </TouchableOpacity>
@@ -117,7 +147,6 @@ export default function MetasScreen() {
   );
 }
 
-// O StyleSheet continua igual
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF9E6', paddingTop: 60, paddingHorizontal: 24, paddingBottom: 40 },
   titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 24 },
@@ -132,6 +161,11 @@ const styles = StyleSheet.create({
   textoMeta: { fontSize: 18, color: '#5A5A5A', flex: 1 },
   textoMetaConcluida: { color: '#CCCCCC', textDecorationLine: 'line-through' },
   iconeLixeira: { fontSize: 24, paddingLeft: 12 },
+  
+  // Estilos do Novo Botão
+  botaoNovoDia: { backgroundColor: '#FFB067', borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 12 },
+  textoBotaoNovoDia: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 },
+  
   botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 8, padding: 16, alignItems: 'center' },
   textoBotaoVoltar: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 }
 });
