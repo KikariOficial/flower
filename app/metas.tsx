@@ -46,21 +46,29 @@ export default function MetasScreen() {
   };
 
   const concluirMeta = async (idParaConcluir: string) => {
+    // Primeiro, atualiza a caixinha para ✅
     const listaAtualizada = listaMetas.map(meta => {
       if (meta.id === idParaConcluir) return { ...meta, concluida: true };
       return meta;
     });
     salvarListaNaMemoria(listaAtualizada);
 
+    // Segundo, dá a recompensa de água na "caixa" correta!
     try {
-      const aguaAtualString = await AsyncStorage.getItem('aguaSalva');
+      // 1. Procuramos na nova caixa 'aguaEstoque'
+      const aguaAtualString = await AsyncStorage.getItem('aguaEstoque');
       let aguaAtual = aguaAtualString ? parseInt(aguaAtualString) : 0;
 
-      if (aguaAtual < 10) {
-        await AsyncStorage.setItem('aguaSalva', (aguaAtual + 1).toString());
+      // 2. Lemos a meta máxima para o regador não transbordar (o padrão é 10)
+      const metaMaxString = await AsyncStorage.getItem('metaMaxima');
+      let metaMax = metaMaxString ? parseInt(metaMaxString) : 10;
+
+      // 3. Se ainda houver espaço, adicionamos a água
+      if (aguaAtual < metaMax) {
+        await AsyncStorage.setItem('aguaEstoque', (aguaAtual + 1).toString());
         Alert.alert('Parabéns!', '+1 gota no seu regador 💧');
       } else {
-        Alert.alert('Regador Cheio!', 'Volte ao jardim para regar sua planta!');
+        Alert.alert('Regador Cheio!', 'Volte ao jardim para regar a sua planta!');
       }
     } catch (e) {
       console.log('Erro ao salvar água');
