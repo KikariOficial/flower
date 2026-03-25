@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert, Animated, Easing } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
-import { Audio } from 'expo-av'; // <-- O MOTOR DE ÁUDIO CHEGOU!
+import { Audio } from 'expo-av';
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 
@@ -14,23 +14,59 @@ export default function HomeScreen() {
   const [aguaEstoque, setAguaEstoque] = useState(0); 
   const [aguaNaPlanta, setAguaNaPlanta] = useState(0); 
   const [metaMaxima, setMetaMaxima] = useState(10); 
+  const jaTocouPassaros = useRef(false);
 
+  // ==========================================
+  // 1. O NOVO CÉREBRO DE ANIMAÇÃO (Animated.Value)
+  // ==========================================
   const larguraBarraAnimada = useRef(new Animated.Value(0)).current;
   const progressoLottieAnimado = useRef(new Animated.Value(0)).current;
-  
-  // TRAVA DE ÁUDIO: Garante que os pássaros só toquem 1x ao abrir o app
-  const jaTocouPassaros = useRef(false);
+
+  // Animações de Entrada (Fade + Slide)
+  const animEntradaSol = useRef(new Animated.Value(0)).current;
+  const animEntradaLagarta = useRef(new Animated.Value(0)).current;
+  const animEntradaPassaro = useRef(new Animated.Value(0)).current;
+  const animEntradaBorboleta = useRef(new Animated.Value(0)).current;
+
+  // Animações Contínuas (Oscilação/Flutuação) - Usamos um único 'tempo' contínuo
+  const tempoFlutuacao = useRef(new Animated.Value(0)).current;
+
+  // Animações Reativas (Clique)
+  const escalaCardStatus = useRef(new Animated.Value(1)).current;
+  const inclinacaoRegador = useRef(new Animated.Value(0)).current;
 
   const porcentagemCrescimento = (aguaNaPlanta / metaMaxima) * 100;
 
   // ==========================================
-  // FUNÇÕES DE ÁUDIO PROFISSIONAIS
+  // 2. FUNÇÃO DE FLUTUAÇÃO CONTÍNUA (Loop)
+  // ==========================================
+  useEffect(() => {
+    // Cria um loop infinito de 0 a 1 e volta, usando uma curva suave (Seno)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(tempoFlutuacao, {
+          toValue: 1,
+          duration: 3000, // Leva 3 segundos para subir
+          easing: Easing.inOut(Easing.sin), // Movimento orgânico
+          useNativeDriver: true,
+        }),
+        Animated.timing(tempoFlutuacao, {
+          toValue: 0,
+          duration: 3000, // Leva 3 segundos para descer
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // ==========================================
+  // FUNÇÕES DE ÁUDIO
   // ==========================================
   const tocarPassaros = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(require('../../assets/passaros.mp3'));
       await sound.playAsync();
-      // Ouve quando o áudio termina e descarrega da memória para o app não ficar pesado
       sound.setOnPlaybackStatusUpdate((status) => { if (status.isLoaded && status.didJustFinish) sound.unloadAsync(); });
     } catch (e) { console.log('Erro áudio pássaros', e); }
   };
@@ -40,16 +76,13 @@ export default function HomeScreen() {
       const { sound } = await Audio.Sound.createAsync(require('../../assets/regar.mp3'));
       await sound.playAsync();
       
-      // A TESOURA INVISÍVEL: Conta 2 segundos (2000ms) e corta o áudio!
       setTimeout(async () => {
         const status = await sound.getStatusAsync();
-        // Se o áudio ainda estiver tocando, nós mandamos parar e jogamos fora
         if (status.isLoaded) {
           await sound.stopAsync();
           await sound.unloadAsync();
         }
       }, 2000); 
-
     } catch (e) { console.log('Erro áudio regar', e); }
   };
 
@@ -62,7 +95,7 @@ export default function HomeScreen() {
   };
 
   // ==========================================
-  // ANIMAÇÃO DO REGADOR E CARREGAMENTO
+  // EFETIROS VISUAIS E CARREGAMENTO
   // ==========================================
   useEffect(() => {
     const porcentagemRegador = (aguaEstoque / metaMaxima) * 100;
@@ -88,10 +121,9 @@ export default function HomeScreen() {
           const plantaAtual = naPlanta ? parseInt(naPlanta) : 0;
           setAguaNaPlanta(plantaAtual);
 
-          // LÓGICA DO PÁSSARO (Só na abertura e se progresso > 60%)
           const progressoAtual = (plantaAtual / maxNum) * 100;
           if (progressoAtual > 60 && !jaTocouPassaros.current) {
-            jaTocouPassaros.current = true; // Tranca a porta
+            jaTocouPassaros.current = true;
             tocarPassaros();
           }
 
@@ -101,6 +133,12 @@ export default function HomeScreen() {
             useNativeDriver: false,
           }).start();
 
+          // DISPARA AS ANIMAÇÕES DE ENTRADA DO ECOSSISTEMA (Se já tiver progresso)
+          if (progressoAtual >= 25) Animated.spring(animEntradaSol, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+          if (progressoAtual >= 50) Animated.spring(animEntradaLagarta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+          if (progressoAtual >= 75) Animated.spring(animEntradaPassaro, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+          if (progressoAtual >= 100) Animated.spring(animEntradaBorboleta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+
         } catch (e) { console.log('Erro ao carregar'); }
       };
       carregarJardim();
@@ -109,9 +147,6 @@ export default function HomeScreen() {
 
   const irParaMetas = () => router.push('/metas'); 
 
-  // ==========================================
-  // O NOVO MOTOR DE REGAR COM INTELIGÊNCIA SONORA
-  // ==========================================
   const regarPlanta = async () => {
     if (aguaEstoque > 0 && aguaNaPlanta < metaMaxima) {
       const novoEstoque = aguaEstoque - 1;
@@ -126,18 +161,26 @@ export default function HomeScreen() {
       // LÓGICA DOS SONS (Level Up vs Regador)
       const porcentagemAntiga = (aguaNaPlanta / metaMaxima) * 100;
       const novaPorcentagem = (novaAguaNaPlanta / metaMaxima) * 100;
-
-      // Descobre se pulou de nível (marcos de 25%, 50%, 75%, 100%)
       const nivelAntigo = Math.floor(porcentagemAntiga / 25);
       const nivelNovo = Math.floor(novaPorcentagem / 25);
 
       if (nivelNovo > nivelAntigo) {
-        tocarLevelUp(); // Toca SOMENTE o Level Up
+        tocarLevelUp();
+        // DISPARA A ANIMAÇÃO DE ENTRADA DO NOVO ANIMAL
+        if (nivelNovo === 1) Animated.spring(animEntradaSol, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+        if (nivelNovo === 2) Animated.spring(animEntradaLagarta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+        if (nivelNovo === 3) Animated.spring(animEntradaPassaro, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+        if (nivelNovo === 4) Animated.spring(animEntradaBorboleta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
       } else {
-        tocarRegar();   // Toca SOMENTE a água
+        tocarRegar();
       }
 
-      // Animação Visual
+      // 3. ANIMAÇÃO REATIVA DO REGADOR (Inclinação)
+      Animated.sequence([
+        Animated.timing(inclinacaoRegador, { toValue: 1, duration: 150, useNativeDriver: true }), // Inclina
+        Animated.timing(inclinacaoRegador, { toValue: 0, duration: 400, useNativeDriver: true }), // Volta
+      ]).start();
+
       Animated.timing(progressoLottieAnimado, {
         toValue: novaAguaNaPlanta / metaMaxima,
         duration: 1500, 
@@ -152,15 +195,79 @@ export default function HomeScreen() {
   };
 
   const resetarPlanta = async () => {
-    Alert.alert('Modo Desenvolvedor 🛠️', 'Deseja zerar a planta para testar?', [
+    Alert.alert('Modo Desenvolvedor 🛠️', 'Deseja zerar a planta?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Sim, Zerar!', onPress: async () => {
           setAguaNaPlanta(0); 
           await AsyncStorage.setItem('aguaNaPlanta', '0'); 
+          // Rebobina a animação visual e ESCONDE o ecossistema
           Animated.timing(progressoLottieAnimado, { toValue: 0, duration: 1500, useNativeDriver: false }).start();
+          Animated.timing(animEntradaSol, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+          Animated.timing(animEntradaLagarta, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+          Animated.timing(animEntradaPassaro, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+          Animated.timing(animEntradaBorboleta, { toValue: 0, duration: 500, useNativeDriver: true }).start();
         }
       }
     ]);
+  };
+
+  // Animação reativa do Card (Pulso ao segurar)
+  const animarCardPress = () => {
+    Animated.sequence([
+      Animated.timing(escalaCardStatus, { toValue: 1.1, duration: 100, useNativeDriver: true }),
+      Animated.timing(escalaCardStatus, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start(resetarPlanta); // Só reseta no fim da animação
+  };
+
+  // ==========================================
+  // 3. DEFINIÇÃO DOS ESTILOS ANIMADOS
+  // ==========================================
+  
+  // Sol ☀️: Combina oscilação vertical + entrada suave
+  const estiloSolAnimado = {
+    opacity: animEntradaSol,
+    transform: [
+      { translateY: animEntradaSol.interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }, // Slide up na entrada
+      { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -15] }) } // Oscilação contínua (15px)
+    ]
+  };
+
+  // Lagarta 🐛: Oscilação menor (mais pesada)
+  const estiloLagartaAnimada = {
+    opacity: animEntradaLagarta,
+    transform: [
+      { translateY: animEntradaLagarta.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
+      { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }
+    ]
+  };
+
+  // Pássaro 🐦: Oscilação maior (mais leve)
+  const estiloPassaroAnimado = {
+    opacity: animEntradaPassaro,
+    transform: [
+      { translateY: animEntradaPassaro.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) },
+      { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -25] }) }
+    ]
+  };
+
+  // Borboleta 🦋: Movimento errático (combina slide horizontal sutil)
+  const estiloBorboletaAnimada = {
+    opacity: animEntradaBorboleta,
+    transform: [
+      { translateY: animEntradaBorboleta.interpolate({ inputRange: [0, 1], outputRange: [100, 0] }) },
+      { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) },
+      { translateX: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [-5, 5] }) } // Balanço lateral
+    ]
+  };
+
+  // Regador 🚿: Inclinação reativa (-30 graus)
+  const estiloRegadorAnimado = {
+    transform: [{
+      rotate: inclinacaoRegador.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '-30deg']
+      })
+    }]
   };
 
   return (
@@ -177,10 +284,14 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.centerArea}>
-        {porcentagemCrescimento >= 25 && <Text style={styles.sunIcon}>☀️</Text>}
-        {porcentagemCrescimento >= 50 && <Text style={styles.lagartaIcon}>🐛</Text>}
-        {porcentagemCrescimento >= 75 && <Text style={styles.passaroIcon}>🐦</Text>}
-        {porcentagemCrescimento >= 100 && <Text style={styles.borboletaIcon}>🦋</Text>}
+        {/* ========================================== */}
+        {/* 4. ECOSSISTEMA MÁGICO E ANIMADO          */}
+        {/* ========================================== */}
+        {/* Usamos Animated.Text para aplicar os estilos complexos */}
+        <Animated.Text style={[styles.sunIcon, estiloSolAnimado]}>☀️</Animated.Text>
+        <Animated.Text style={[styles.lagartaIcon, estiloLagartaAnimada]}>🐛</Animated.Text>
+        <Animated.Text style={[styles.passaroIcon, estiloPassaroAnimado]}>🐦</Animated.Text>
+        <Animated.Text style={[styles.borboletaIcon, estiloBorboletaAnimada]}>🦋</Animated.Text>
         
         <AnimatedLottie
           source={require('../../assets/planta.json')} 
@@ -188,14 +299,18 @@ export default function HomeScreen() {
           progress={progressoLottieAnimado} 
         />
         
-        <TouchableOpacity style={styles.cardStatus} onLongPress={resetarPlanta}>
-          <Text style={styles.statusText}>Progresso: {Math.floor(porcentagemCrescimento)}%</Text>
-        </TouchableOpacity>
+        {/* Card reativo (Pulso) e gatilho LongPress */}
+        <Animated.View style={{ transform: [{ scale: escalaCardStatus }] }}>
+          <TouchableOpacity style={styles.cardStatus} onLongPress={animarCardPress} delayLongPress={800}>
+            <Text style={styles.statusText}>Progresso: {Math.floor(porcentagemCrescimento)}%</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       <View style={styles.bottomArea}>
-        <TouchableOpacity style={styles.botaoRegador} onPress={regarPlanta}>
-          <Text style={styles.wateringCanIcon}>🚿</Text>
+        {/* Regador reativo (Inclinação) */}
+        <TouchableOpacity style={styles.botaoRegador} onPress={regarPlanta} activeOpacity={0.7}>
+          <Animated.Text style={[styles.wateringCanIcon, estiloRegadorAnimado]}>🚿</Animated.Text>
         </TouchableOpacity>
         
         <Text style={styles.waterLabel}>ÁGUA NO REGADOR: {aguaEstoque}</Text>
@@ -217,10 +332,13 @@ const styles = StyleSheet.create({
   botaoCirculo: { backgroundColor: '#FFFFFF', width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   iconText: { fontSize: 24, color: '#8CB369', fontWeight: 'bold' },
   centerArea: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  
+  // Posicionamento base dos ícones do Ecossistema
   sunIcon: { fontSize: 80, position: 'absolute', top: 10, left: 0, opacity: 0.8 },
   passaroIcon: { fontSize: 40, position: 'absolute', top: 50, right: 20 },
   lagartaIcon: { fontSize: 30, position: 'absolute', bottom: 120, left: 40 },
   borboletaIcon: { fontSize: 50, position: 'absolute', top: 100, left: 50 },
+  
   lottiePlant: { width: 280, height: 280, marginBottom: 20 },
   cardStatus: { backgroundColor: 'rgba(255, 255, 255, 0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: -20 },
   statusText: { fontSize: 16, color: '#5A5A5A', textAlign: 'center', fontWeight: 'bold' },
