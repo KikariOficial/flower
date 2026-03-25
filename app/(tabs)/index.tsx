@@ -4,6 +4,9 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
+import { Audio } from 'expo-av'; // <-- O MOTOR DE ÁUDIO CHEGOU!
+
+const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -13,61 +16,91 @@ export default function HomeScreen() {
   const [metaMaxima, setMetaMaxima] = useState(10); 
 
   const larguraBarraAnimada = useRef(new Animated.Value(0)).current;
-  
-  // 2. NOVA MEMÓRIA: Controla o "vídeo" da planta indo de 0.0 a 1.0
   const progressoLottieAnimado = useRef(new Animated.Value(0)).current;
-  const lottieRef = useRef<LottieView>(null);
+  
+  // TRAVA DE ÁUDIO: Garante que os pássaros só toquem 1x ao abrir o app
+  const jaTocouPassaros = useRef(false);
 
   const porcentagemCrescimento = (aguaNaPlanta / metaMaxima) * 100;
 
-  // 3. O CORAÇÃO DA ANIMAÇÃO: Roda sozinho toda vez que a água muda!
+  // ==========================================
+  // FUNÇÕES DE ÁUDIO PROFISSIONAIS
+  // ==========================================
+  const tocarPassaros = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(require('../../assets/passaros.mp3'));
+      await sound.playAsync();
+      // Ouve quando o áudio termina e descarrega da memória para o app não ficar pesado
+      sound.setOnPlaybackStatusUpdate((status) => { if (status.isLoaded && status.didJustFinish) sound.unloadAsync(); });
+    } catch (e) { console.log('Erro áudio pássaros', e); }
+  };
+
+  const tocarRegar = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(require('../../assets/regar.mp3'));
+      await sound.playAsync();
+      
+      // A TESOURA INVISÍVEL: Conta 2 segundos (2000ms) e corta o áudio!
+      setTimeout(async () => {
+        const status = await sound.getStatusAsync();
+        // Se o áudio ainda estiver tocando, nós mandamos parar e jogamos fora
+        if (status.isLoaded) {
+          await sound.stopAsync();
+          await sound.unloadAsync();
+        }
+      }, 2000); 
+
+    } catch (e) { console.log('Erro áudio regar', e); }
+  };
+
+  const tocarLevelUp = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(require('../../assets/levelup.mp3'));
+      await sound.playAsync();
+      sound.setOnPlaybackStatusUpdate((status) => { if (status.isLoaded && status.didJustFinish) sound.unloadAsync(); });
+    } catch (e) { console.log('Erro áudio level up', e); }
+  };
+
+  // ==========================================
+  // ANIMAÇÃO DO REGADOR E CARREGAMENTO
+  // ==========================================
   useEffect(() => {
-    // Anima a barra azul do regador
     const porcentagemRegador = (aguaEstoque / metaMaxima) * 100;
     Animated.spring(larguraBarraAnimada, {
       toValue: porcentagemRegador > 100 ? 100 : porcentagemRegador,
       useNativeDriver: false, 
       bounciness: 12, 
     }).start();
-
-    // Anima a PLANTA suavemente (Calcula um valor entre 0 e 1)
-    const progressoDecimal = aguaNaPlanta / metaMaxima;
-    
-    // Setup listener para atualizar o Lottie diretamente
-    const listenerId = progressoLottieAnimado.addListener(({ value }) => {
-      if (lottieRef.current) {
-        // Calcula a frame baseado no progresso (0-1)
-        // Lottie JSON tem 100 frames (ip:0, op:100)
-        const frameAtual = Math.round(value * 100);
-        lottieRef.current.play(frameAtual, frameAtual);
-      }
-    });
-    
-    Animated.timing(progressoLottieAnimado, {
-      toValue: progressoDecimal,
-      duration: 1500, // Leva 1.5 segundos para crescer a cada clique
-      useNativeDriver: false,
-    }).start();
-    
-    // Cleanup do listener
-    return () => {
-      progressoLottieAnimado.removeListener(listenerId);
-    };
-
-  }, [aguaEstoque, aguaNaPlanta, metaMaxima]);
+  }, [aguaEstoque, metaMaxima]);
 
   useFocusEffect(
     useCallback(() => {
       const carregarJardim = async () => {
         try {
+          const max = await AsyncStorage.getItem('metaMaxima');
+          const maxNum = max ? parseInt(max) : 10;
+          setMetaMaxima(maxNum);
+
           const estoque = await AsyncStorage.getItem('aguaEstoque');
           if (estoque) setAguaEstoque(parseInt(estoque));
 
           const naPlanta = await AsyncStorage.getItem('aguaNaPlanta');
-          if (naPlanta) setAguaNaPlanta(parseInt(naPlanta));
+          const plantaAtual = naPlanta ? parseInt(naPlanta) : 0;
+          setAguaNaPlanta(plantaAtual);
 
-          const max = await AsyncStorage.getItem('metaMaxima');
-          if (max) setMetaMaxima(parseInt(max));
+          // LÓGICA DO PÁSSARO (Só na abertura e se progresso > 60%)
+          const progressoAtual = (plantaAtual / maxNum) * 100;
+          if (progressoAtual > 60 && !jaTocouPassaros.current) {
+            jaTocouPassaros.current = true; // Tranca a porta
+            tocarPassaros();
+          }
+
+          Animated.timing(progressoLottieAnimado, {
+            toValue: plantaAtual / maxNum,
+            duration: 1200, 
+            useNativeDriver: false,
+          }).start();
+
         } catch (e) { console.log('Erro ao carregar'); }
       };
       carregarJardim();
@@ -76,6 +109,9 @@ export default function HomeScreen() {
 
   const irParaMetas = () => router.push('/metas'); 
 
+  // ==========================================
+  // O NOVO MOTOR DE REGAR COM INTELIGÊNCIA SONORA
+  // ==========================================
   const regarPlanta = async () => {
     if (aguaEstoque > 0 && aguaNaPlanta < metaMaxima) {
       const novoEstoque = aguaEstoque - 1;
@@ -86,6 +122,28 @@ export default function HomeScreen() {
 
       await AsyncStorage.setItem('aguaEstoque', novoEstoque.toString());
       await AsyncStorage.setItem('aguaNaPlanta', novaAguaNaPlanta.toString());
+
+      // LÓGICA DOS SONS (Level Up vs Regador)
+      const porcentagemAntiga = (aguaNaPlanta / metaMaxima) * 100;
+      const novaPorcentagem = (novaAguaNaPlanta / metaMaxima) * 100;
+
+      // Descobre se pulou de nível (marcos de 25%, 50%, 75%, 100%)
+      const nivelAntigo = Math.floor(porcentagemAntiga / 25);
+      const nivelNovo = Math.floor(novaPorcentagem / 25);
+
+      if (nivelNovo > nivelAntigo) {
+        tocarLevelUp(); // Toca SOMENTE o Level Up
+      } else {
+        tocarRegar();   // Toca SOMENTE a água
+      }
+
+      // Animação Visual
+      Animated.timing(progressoLottieAnimado, {
+        toValue: novaAguaNaPlanta / metaMaxima,
+        duration: 1500, 
+        useNativeDriver: false,
+      }).start();
+
     } else if (aguaEstoque === 0) {
       Alert.alert('Falta Água', 'Cumpra suas metas para ganhar mais água!');
     } else {
@@ -93,31 +151,16 @@ export default function HomeScreen() {
     }
   };
 
-  // ==========================================
-  // O CÓDIGO SECRETO (Cheat Code de Teste)
-  // ==========================================
   const resetarPlanta = async () => {
-    Alert.alert(
-      'Modo Desenvolvedor 🛠️',
-      'Deseja zerar a planta para testar a animação novamente?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sim, Zerar!',
-          onPress: async () => {
-            setAguaNaPlanta(0); // Zera no Cérebro
-            await AsyncStorage.setItem('aguaNaPlanta', '0'); // Zera na Memória
-
-            // Faz a animação rebobinar lindamente de volta pro zero!
-            Animated.timing(progressoLottieAnimado, {
-              toValue: 0,
-              duration: 1500,
-              useNativeDriver: false,
-            }).start();
-          },
-        },
-      ]
-    );
+    Alert.alert('Modo Desenvolvedor 🛠️', 'Deseja zerar a planta para testar?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sim, Zerar!', onPress: async () => {
+          setAguaNaPlanta(0); 
+          await AsyncStorage.setItem('aguaNaPlanta', '0'); 
+          Animated.timing(progressoLottieAnimado, { toValue: 0, duration: 1500, useNativeDriver: false }).start();
+        }
+      }
+    ]);
   };
 
   return (
@@ -134,26 +177,19 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.centerArea}>
-        
-        {/* O Ecossistema */}
         {porcentagemCrescimento >= 25 && <Text style={styles.sunIcon}>☀️</Text>}
         {porcentagemCrescimento >= 50 && <Text style={styles.lagartaIcon}>🐛</Text>}
         {porcentagemCrescimento >= 75 && <Text style={styles.passaroIcon}>🐦</Text>}
         {porcentagemCrescimento >= 100 && <Text style={styles.borboletaIcon}>🦋</Text>}
         
-        {/* Usamos o LottieView com progresso controlado! */}
-        <LottieView
-          ref={lottieRef}
+        <AnimatedLottie
           source={require('../../assets/planta.json')} 
           style={styles.lottiePlant}
-          progress={0}
-          loop={false}
-          autoPlay={false}
+          progress={progressoLottieAnimado} 
         />
         
-{/* Transformamos o card em um botão secreto usando onLongPress! */}
         <TouchableOpacity style={styles.cardStatus} onLongPress={resetarPlanta}>
-          <Text style={styles.statusText}>Progresso: {Math.round(porcentagemCrescimento)}%</Text>
+          <Text style={styles.statusText}>Progresso: {Math.floor(porcentagemCrescimento)}%</Text>
         </TouchableOpacity>
       </View>
 
