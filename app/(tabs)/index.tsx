@@ -275,7 +275,7 @@ export default function HomeScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
 
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.botaoCirculo}>
+        <TouchableOpacity style={styles.botaoCirculo} onPress={() => router.push('/config')}>
           <Text style={styles.iconText}>≡</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.botaoCirculo} onPress={irParaMetas}>
