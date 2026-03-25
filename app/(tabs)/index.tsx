@@ -93,6 +93,33 @@ export default function HomeScreen() {
     }
   };
 
+  // ==========================================
+  // O CÓDIGO SECRETO (Cheat Code de Teste)
+  // ==========================================
+  const resetarPlanta = async () => {
+    Alert.alert(
+      'Modo Desenvolvedor 🛠️',
+      'Deseja zerar a planta para testar a animação novamente?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sim, Zerar!',
+          onPress: async () => {
+            setAguaNaPlanta(0); // Zera no Cérebro
+            await AsyncStorage.setItem('aguaNaPlanta', '0'); // Zera na Memória
+
+            // Faz a animação rebobinar lindamente de volta pro zero!
+            Animated.timing(progressoLottieAnimado, {
+              toValue: 0,
+              duration: 1500,
+              useNativeDriver: false,
+            }).start();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <LinearGradient colors={['#E9F5E9', '#FFF9E6', '#FFE4B5']} style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
@@ -124,9 +151,10 @@ export default function HomeScreen() {
           autoPlay={false}
         />
         
-        <View style={styles.cardStatus}>
+{/* Transformamos o card em um botão secreto usando onLongPress! */}
+        <TouchableOpacity style={styles.cardStatus} onLongPress={resetarPlanta}>
           <Text style={styles.statusText}>Progresso: {Math.round(porcentagemCrescimento)}%</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.bottomArea}>
