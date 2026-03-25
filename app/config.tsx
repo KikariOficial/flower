@@ -29,7 +29,7 @@ export default function ConfigScreen() {
   };
 
   const mostrarCreditos = () => {
-    Alert.alert('Créditos', 'Desenvolvido com ❤️ por você.\n\nAnimações por LottieFiles.');
+    Alert.alert('Créditos', 'Desenvolvido por Carlos Vinicius.\n\nAnimações por LottieFiles.');
   };
 
   const limparDados = () => {
@@ -80,7 +80,7 @@ export default function ConfigScreen() {
           <View style={styles.divisoria} />
           <View style={styles.linhaConfig}>
             <Text style={styles.textoConfig}>Versão do Aplicativo</Text>
-            <Text style={styles.versaoTexto}>1.0.0</Text>
+            <Text style={styles.versaoTexto}>1.1.0</Text>
           </View>
         </View>
 
