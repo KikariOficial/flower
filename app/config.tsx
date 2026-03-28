@@ -6,12 +6,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // 1. IMPORTAMOS O MOTOR DE NOTIFICAÇÕES
 import * as Notifications from 'expo-notifications';
 
-// 2. CONFIGURAÇÃO GLOBAL: Diz ao celular para mostrar a notificação e tocar som!
+// 2. CONFIGURAÇÃO GLOBAL
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true, // <-- NOVA REGRA EXIGIDA (Aparece no topo)
+    shouldShowList: true,   // <-- NOVA REGRA EXIGIDA (Aparece na central)
   }),
 });
 
@@ -53,10 +55,11 @@ export default function ConfigScreen() {
           sound: true, // Faz o "plim" do celular!
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
           hour: 10,
           minute: 0,
           repeats: true, // Repete todo dia
-        },
+        } as any,
       });
 
       setNotificacoesAtivas(true);
@@ -80,7 +83,7 @@ export default function ConfigScreen() {
   };
 
   const mostrarCreditos = () => {
-    Alert.alert('Créditos', 'Desenvolvido com ❤️ por você.\n\nAnimações por LottieFiles.');
+    Alert.alert('Créditos', 'Desenvolvido com ❤️ por Carlos.\n\nAnimações por LottieFiles.');
   };
 
   const limparDados = () => {
@@ -151,7 +154,7 @@ export default function ConfigScreen() {
           <View style={styles.divisoria} />
           <View style={styles.linhaConfig}>
             <Text style={styles.textoConfig}>Versão do Aplicativo</Text>
-            <Text style={styles.versaoTexto}>1.0.0</Text>
+            <Text style={styles.versaoTexto}>1.1.0</Text>
           </View>
         </View>
 
