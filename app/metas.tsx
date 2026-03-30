@@ -91,7 +91,7 @@ export default function MetasScreen() {
       try {
         await Notifications.scheduleNotificationAsync({
           content: { title: `Lembrete: ${novaMetaTexto} ⏰`, body: novaMetaDesc || 'Chegou a hora de cumprir sua meta!', sound: true },
-          trigger: repeticao || { hour: hora, minute: minuto, repeats: false } as any, // Se for única, toca hoje
+          trigger: repeticao || { hour: hora, minute: minuto, repeats: false } as any,
         });
       } catch (e) { console.log('Erro no alarme'); }
     }

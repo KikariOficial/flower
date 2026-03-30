@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -12,8 +12,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
-    shouldShowBanner: true, // <-- NOVA REGRA EXIGIDA (Aparece no topo)
-    shouldShowList: true,   // <-- NOVA REGRA EXIGIDA (Aparece na central)
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -24,50 +24,72 @@ export default function ConfigScreen() {
   const [metaEscolhida, setMetaEscolhida] = useState(10); 
 
   useEffect(() => {
-    const carregarConfigs = async () => {
+    carregarConfigs();
+  }, []);
+
+  const carregarConfigs = async () => {
+    try {
       const notif = await AsyncStorage.getItem('notificacoesAtivas');
       if (notif === 'true') setNotificacoesAtivas(true);
 
       const max = await AsyncStorage.getItem('metaMaxima');
       if (max) setMetaEscolhida(parseInt(max));
-    };
-    carregarConfigs();
-  }, []);
+    } catch (e) { console.log('Erro ao carregar'); }
+  };
 
   // ==========================================
-  // O CÉREBRO DAS NOTIFICAÇÕES (A Mágica Acontece Aqui)
+  // O NOVO CÉREBRO DAS NOTIFICAÇÕES
   // ==========================================
   const alternarNotificacoes = async (valor: boolean) => {
     if (valor === true) {
-      // 1. Pede permissão ao usuário
-      const { status } = await Notifications.requestPermissionsAsync();
+      // 1. Pede permissão ao usuário de forma explícita
+      const { status: statusAtual } = await Notifications.getPermissionsAsync();
+      let statusFinal = statusAtual;
       
-      if (status !== 'granted') {
-        Alert.alert('Permissão Negada ❌', 'Você precisa permitir as notificações nas configurações do seu celular.');
-        return; // Sai da função se ele não deixou
+      if (statusAtual !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        statusFinal = status;
+      }
+      
+      if (statusFinal !== 'granted') {
+        Alert.alert('Permissão Negada ❌', 'Ative as notificações nas configurações do celular.');
+        return; 
       }
 
-      // 2. Se ele deixou, nós AGENDAMOS o "despertador" para as 10h da manhã, todos os dias!
+      // 2. CONFIGURA O CANAL DE NOTIFICAÇÃO (Fundamental para Android 8+)
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('jardim-avisos', {
+          name: 'Avisos do Jardim',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#8CB369',
+        });
+      }
+
+      // 3. O DESPERTADOR OFICIAL (Todos os dias às 10h da manhã)
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Sua planta está com sede! 🌱',
           body: 'Não se esqueça de cumprir suas metas hoje para ganhar gotas de água.',
-          sound: true, // Faz o "plim" do celular!
+          sound: true, 
         },
+        // O gatilho real: Hora, Minuto e Repetição diária!
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
           hour: 10,
           minute: 0,
-          repeats: true, // Repete todo dia
+          repeats: true, 
+          channelId: 'jardim-avisos', 
         } as any,
       });
 
       setNotificacoesAtivas(true);
       await AsyncStorage.setItem('notificacoesAtivas', 'true');
+      
+      // Atualizamos a mensagem de sucesso para o usuário:
       Alert.alert('Notificações Ativadas 🔔', 'Você receberá um lembrete todos os dias às 10:00 da manhã!');
       
     } else {
-      // Se ele desligou a chave, nós CANCELAMOS todos os alarmes agendados
+      // Se ele desligou, nós CANCELAMOS tudo
       await Notifications.cancelAllScheduledNotificationsAsync();
       
       setNotificacoesAtivas(false);
@@ -83,7 +105,7 @@ export default function ConfigScreen() {
   };
 
   const mostrarCreditos = () => {
-    Alert.alert('Créditos', 'Desenvolvido com ❤️ por Carlos.\n\nAnimações por LottieFiles.');
+    Alert.alert('Créditos', 'Desenvolvido por Carlos.\n\nAnimações por LottieFiles.');
   };
 
   const limparDados = () => {
@@ -154,7 +176,7 @@ export default function ConfigScreen() {
           <View style={styles.divisoria} />
           <View style={styles.linhaConfig}>
             <Text style={styles.textoConfig}>Versão do Aplicativo</Text>
-            <Text style={styles.versaoTexto}>1.1.0</Text>
+            <Text style={styles.versaoTexto}>1.1.2</Text>
           </View>
         </View>
 
