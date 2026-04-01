@@ -2,31 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// 1. IMPORTAMOS O MOTOR DE NOTIFICAÇÕES
 import * as Notifications from 'expo-notifications';
-
-// 2. CONFIGURAÇÃO GLOBAL
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 export default function ConfigScreen() {
   const router = useRouter();
   
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(false);
   const [metaEscolhida, setMetaEscolhida] = useState(10); 
+  const [cicloVida, setCicloVida] = useState('diario'); // diario, semanal, mensal
 
   useEffect(() => {
     carregarConfigs();
   }, []);
 
+  // 1. CARREGA TODAS AS CONFIGURAÇÕES SALVAS
   const carregarConfigs = async () => {
     try {
       const notif = await AsyncStorage.getItem('notificacoesAtivas');
@@ -34,76 +23,55 @@ export default function ConfigScreen() {
 
       const max = await AsyncStorage.getItem('metaMaxima');
       if (max) setMetaEscolhida(parseInt(max));
-    } catch (e) { console.log('Erro ao carregar'); }
+
+      const ciclo = await AsyncStorage.getItem('cicloVida');
+      if (ciclo) setCicloVida(ciclo);
+    } catch (e) { console.log('Erro ao carregar configurações'); }
   };
 
-  // ==========================================
-  // O NOVO CÉREBRO DAS NOTIFICAÇÕES
-  // ==========================================
-  const alternarNotificacoes = async (valor: boolean) => {
-    if (valor === true) {
-      // 1. Pede permissão ao usuário de forma explícita
-      const { status: statusAtual } = await Notifications.getPermissionsAsync();
-      let statusFinal = statusAtual;
-      
-      if (statusAtual !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        statusFinal = status;
-      }
-      
-      if (statusFinal !== 'granted') {
-        Alert.alert('Permissão Negada ❌', 'Ative as notificações nas configurações do celular.');
-        return; 
-      }
+  // 2. FUNÇÃO PARA MUDAR O CICLO DE VIDA DA PLANTA
+  const mudarCiclo = async (valor: string) => {
+    setCicloVida(valor);
+    await AsyncStorage.setItem('cicloVida', valor);
+    Alert.alert('Ciclo Atualizado', `Sua planta agora irá resetar de forma ${valor}.`);
+  };
 
-      // 2. CONFIGURA O CANAL DE NOTIFICAÇÃO (Fundamental para Android 8+)
+  // 3. FUNÇÃO DO DESPERTADOR
+  const alternarNotificacoes = async (valor: boolean) => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (valor === true) {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return;
+
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('jardim-avisos', {
           name: 'Avisos do Jardim',
           importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#8CB369',
         });
       }
 
-      // 3. O DESPERTADOR OFICIAL (Todos os dias às 10h da manhã)
       await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Sua planta está com sede! 🌱',
-          body: 'Não se esqueça de cumprir suas metas hoje para ganhar gotas de água.',
-          sound: true, 
-        },
-        // O gatilho real: Hora, Minuto e Repetição diária!
-        trigger: {
-          hour: 10,
-          minute: 0,
-          repeats: true, 
-          channelId: 'jardim-avisos', 
-        } as any,
+        content: { title: 'Sua planta está com sede! 🌱', body: 'Hora de cumprir suas metas!', sound: true },
+        trigger: { type: 'daily', hour: 10, minute: 0, repeats: true, channeId: 'jardim-avisos' } as any,
       });
 
       setNotificacoesAtivas(true);
       await AsyncStorage.setItem('notificacoesAtivas', 'true');
-      
-      // Atualizamos a mensagem de sucesso para o usuário:
-      Alert.alert('Notificações Ativadas 🔔', 'Você receberá um lembrete todos os dias às 10:00 da manhã!');
-      
     } else {
-      // Se ele desligou, nós CANCELAMOS tudo
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      
       setNotificacoesAtivas(false);
       await AsyncStorage.setItem('notificacoesAtivas', 'false');
-      Alert.alert('Notificações Desativadas 🔕', 'Você não receberá mais lembretes.');
     }
   };
 
+  // 4. FUNÇÃO DA DIFICULDADE
   const mudarDificuldade = async (valor: number) => {
     setMetaEscolhida(valor);
     await AsyncStorage.setItem('metaMaxima', valor.toString());
-    Alert.alert('Dificuldade Atualizada!', `Sua planta agora precisa de ${valor} gotas para florescer totalmente.`);
   };
 
+  // ==========================================
+  // FUNÇÕES RESTAURADAS: CRÉDITOS E LIMPEZA
+  // ==========================================
   const mostrarCreditos = () => {
     Alert.alert('Créditos', 'Desenvolvido por Carlos.\n\nAnimações por LottieFiles.');
   };
@@ -126,47 +94,47 @@ export default function ConfigScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.titulo}>Configurações</Text>
-
+      
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         
-        <Text style={styles.sessaoTitulo}>Jardim</Text>
+        {/* SESSÃO 1: JARDIM E CICLO */}
+        <Text style={styles.sessaoTitulo}>Jardim & Ciclo</Text>
         <View style={styles.card}>
           <View style={styles.blocoConfig}>
-            <View>
-              <Text style={styles.textoConfig}>Gotas para florescer</Text>
-              <Text style={styles.subtextoConfig}>Define o tempo de crescimento da planta</Text>
-            </View>
-            
+            <Text style={styles.textoConfig}>Dificuldade (Gotas)</Text>
             <View style={styles.linhaBotoesConfig}>
-              <TouchableOpacity style={[styles.botaoConfig, metaEscolhida === 10 && styles.botaoConfigAtivo]} onPress={() => mudarDificuldade(10)}>
-                <Text style={[styles.textoBotaoConfig, metaEscolhida === 10 && styles.textoBotaoConfigAtivo]}>10</Text>
+              {[10, 20, 30].map(v => (
+                <TouchableOpacity key={v} style={[styles.botaoConfig, metaEscolhida === v && styles.botaoConfigAtivo]} onPress={() => mudarDificuldade(v)}>
+                  <Text style={[styles.textoBotaoConfig, metaEscolhida === v && styles.textoBotaoConfigAtivo]}>{v}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.textoConfig, {marginTop: 20}]}>Reset Automático da Planta</Text>
+            <View style={styles.linhaBotoesConfig}>
+              <TouchableOpacity style={[styles.botaoConfig, cicloVida === 'diario' && styles.botaoConfigAtivo]} onPress={() => mudarCiclo('diario')}>
+                <Text style={[styles.textoBotaoConfig, cicloVida === 'diario' && styles.textoBotaoConfigAtivo]}>Diário</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.botaoConfig, metaEscolhida === 20 && styles.botaoConfigAtivo]} onPress={() => mudarDificuldade(20)}>
-                <Text style={[styles.textoBotaoConfig, metaEscolhida === 20 && styles.textoBotaoConfigAtivo]}>20</Text>
+              <TouchableOpacity style={[styles.botaoConfig, cicloVida === 'semanal' && styles.botaoConfigAtivo]} onPress={() => mudarCiclo('semanal')}>
+                <Text style={[styles.textoBotaoConfig, cicloVida === 'semanal' && styles.textoBotaoConfigAtivo]}>Semanal</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.botaoConfig, metaEscolhida === 30 && styles.botaoConfigAtivo]} onPress={() => mudarDificuldade(30)}>
-                <Text style={[styles.textoBotaoConfig, metaEscolhida === 30 && styles.textoBotaoConfigAtivo]}>30</Text>
+              <TouchableOpacity style={[styles.botaoConfig, cicloVida === 'mensal' && styles.botaoConfigAtivo]} onPress={() => mudarCiclo('mensal')}>
+                <Text style={[styles.textoBotaoConfig, cicloVida === 'mensal' && styles.textoBotaoConfigAtivo]}>Mensal</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
+        {/* SESSÃO 2: PREFERÊNCIAS */}
         <Text style={styles.sessaoTitulo}>Preferências</Text>
         <View style={styles.card}>
           <View style={styles.linhaConfig}>
-            <View>
-              <Text style={styles.textoConfig}>Notificações Diárias</Text>
-              <Text style={styles.subtextoConfig}>Lembrete às 10:00 da manhã</Text>
-            </View>
-            <Switch
-              value={notificacoesAtivas}
-              onValueChange={alternarNotificacoes}
-              trackColor={{ false: '#E0E0E0', true: '#8CB369' }}
-              thumbColor={'#FFFFFF'}
-            />
+            <View><Text style={styles.textoConfig}>Notificações Diárias</Text></View>
+            <Switch value={notificacoesAtivas} onValueChange={alternarNotificacoes} trackColor={{ false: '#E0E0E0', true: '#8CB369' }} thumbColor="#FFF" />
           </View>
         </View>
 
+        {/* SESSÃO 3: SOBRE (CRÉDITOS RESTAURADOS) */}
         <Text style={styles.sessaoTitulo}>Sobre</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.linhaBotao} onPress={mostrarCreditos}>
@@ -176,10 +144,11 @@ export default function ConfigScreen() {
           <View style={styles.divisoria} />
           <View style={styles.linhaConfig}>
             <Text style={styles.textoConfig}>Versão do Aplicativo</Text>
-            <Text style={styles.versaoTexto}>1.1.2</Text>
+            <Text style={styles.versaoTexto}>1.0.0</Text>
           </View>
         </View>
 
+        {/* SESSÃO 4: AVANÇADO (LIMPEZA RESTAURADA) */}
         <Text style={styles.sessaoTitulo}>Avançado</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.linhaBotao} onPress={limparDados}>
@@ -189,6 +158,7 @@ export default function ConfigScreen() {
 
       </ScrollView>
 
+      {/* BOTÃO VOLTAR */}
       <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
         <Text style={styles.textoBotaoVoltar}>Voltar ao Jardim</Text>
       </TouchableOpacity>
@@ -196,21 +166,21 @@ export default function ConfigScreen() {
   );
 }
 
+// ESTILOS ATUALIZADOS PARA SUPORTAR TUDO
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF9E6', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
   titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 24 },
   scroll: { flex: 1 },
   sessaoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#A0A0A0', textTransform: 'uppercase', marginBottom: 8, marginTop: 16, marginLeft: 8 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 12, overflow: 'hidden', marginBottom: 8, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 12, overflow: 'hidden', marginBottom: 8, elevation: 2 },
   linhaConfig: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  blocoConfig: { padding: 16 }, 
   linhaBotao: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   divisoria: { height: 1, backgroundColor: '#F0F0F0', marginLeft: 16 },
+  blocoConfig: { padding: 16 },
   textoConfig: { fontSize: 16, color: '#5A5A5A', fontWeight: '500' },
-  subtextoConfig: { fontSize: 12, color: '#A0A0A0', marginTop: 4 },
-  seta: { fontSize: 20, color: '#CCCCCC' },
   versaoTexto: { fontSize: 16, color: '#A0A0A0' },
-  linhaBotoesConfig: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  seta: { fontSize: 20, color: '#CCCCCC' },
+  linhaBotoesConfig: { flexDirection: 'row', gap: 8, marginTop: 12 },
   botaoConfig: { flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: '#F0F0F0', alignItems: 'center' },
   botaoConfigAtivo: { backgroundColor: '#4A8DB7' },
   textoBotaoConfig: { fontWeight: 'bold', color: '#5A5A5A' },

@@ -107,43 +107,60 @@ export default function HomeScreen() {
   }, [aguaEstoque, metaMaxima]);
 
   useFocusEffect(
-    useCallback(() => {
-      const carregarJardim = async () => {
-        try {
-          const max = await AsyncStorage.getItem('metaMaxima');
-          const maxNum = max ? parseInt(max) : 10;
-          setMetaMaxima(maxNum);
+      useCallback(() => {
+        const carregarJardim = async () => {
+          try {
+            // ... (seus outros carregamentos de estoque, metaMaxima, etc)
 
-          const estoque = await AsyncStorage.getItem('aguaEstoque');
-          if (estoque) setAguaEstoque(parseInt(estoque));
+            const hoje = new Date();
+            const hojeString = hoje.toISOString().split('T')[0];
+            
+            const ultimoReset = await AsyncStorage.getItem('ultimoResetPlanta');
+            const ciclo = await AsyncStorage.getItem('cicloVida') || 'diario';
+            const aguaSalva = await AsyncStorage.getItem('aguaNaPlanta');
+            let plantaAtual = aguaSalva ? parseInt(aguaSalva) : 0;
 
-          const naPlanta = await AsyncStorage.getItem('aguaNaPlanta');
-          const plantaAtual = naPlanta ? parseInt(naPlanta) : 0;
-          setAguaNaPlanta(plantaAtual);
+            // LOGICA DE RESET AUTOMÁTICO
+            if (ultimoReset && ultimoReset !== hojeString) {
+              const dataAnterior = new Date(ultimoReset);
+              let deveResetar = false;
 
-          const progressoAtual = (plantaAtual / maxNum) * 100;
-          if (progressoAtual > 60 && !jaTocouPassaros.current) {
-            jaTocouPassaros.current = true;
-            tocarPassaros();
-          }
+              if (ciclo === 'diario') {
+                deveResetar = true; // Mudou o dia, reseta.
+              } else if (ciclo === 'semanal') {
+                // Verifica se mudou a semana (domingo a domingo) ou se passaram 7 dias
+                const diffTime = Math.abs(hoje.getTime() - dataAnterior.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays >= 7 || hoje.getDay() < dataAnterior.getDay()) deveResetar = true;
+              } else if (ciclo === 'mensal') {
+                if (hoje.getMonth() !== dataAnterior.getMonth()) deveResetar = true;
+              }
 
-          Animated.timing(progressoLottieAnimado, {
-            toValue: plantaAtual / maxNum,
-            duration: 1200, 
-            useNativeDriver: false,
-          }).start();
+              if (deveResetar) {
+                plantaAtual = 0;
+                await AsyncStorage.setItem('aguaNaPlanta', '0');
+                await AsyncStorage.setItem('ultimoResetPlanta', hojeString);
+                Alert.alert('Novo Ciclo! 🌱', `Seu ciclo ${ciclo} reiniciou. Vamos cultivar novamente?`);
+              }
+            } else if (!ultimoReset) {
+              // Primeira vez abrindo o app
+              await AsyncStorage.setItem('ultimoResetPlanta', hojeString);
+            }
 
-          // DISPARA AS ANIMAÇÕES DE ENTRADA DO ECOSSISTEMA (Se já tiver progresso)
-          if (progressoAtual >= 25) Animated.spring(animEntradaSol, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
-          if (progressoAtual >= 50) Animated.spring(animEntradaLagarta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
-          if (progressoAtual >= 75) Animated.spring(animEntradaPassaro, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
-          if (progressoAtual >= 100) Animated.spring(animEntradaBorboleta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
+            setAguaNaPlanta(plantaAtual);
+            
+            // Anima a planta para o valor correto (0 se resetou, ou o valor salvo)
+            Animated.timing(progressoLottieAnimado, {
+              toValue: plantaAtual / metaMaxima,
+              duration: 1500,
+              useNativeDriver: false,
+            }).start();
 
-        } catch (e) { console.log('Erro ao carregar'); }
-      };
-      carregarJardim();
-    }, [])
-  );
+          } catch (e) { console.log('Erro ao carregar'); }
+        };
+        carregarJardim();
+      }, [metaMaxima])
+    );
 
   const irParaMetas = () => router.push('/metas'); 
 
