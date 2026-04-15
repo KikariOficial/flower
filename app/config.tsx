@@ -9,13 +9,15 @@ export default function ConfigScreen() {
   
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(false);
   const [metaEscolhida, setMetaEscolhida] = useState(10); 
-  const [cicloVida, setCicloVida] = useState('diario'); // diario, semanal, mensal
+  const [cicloVida, setCicloVida] = useState('diario'); 
+
+  // A nossa nova lista para a catraca (de 10 até 100)
+  const opcoesGotas = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
   useEffect(() => {
     carregarConfigs();
   }, []);
 
-  // 1. CARREGA TODAS AS CONFIGURAÇÕES SALVAS
   const carregarConfigs = async () => {
     try {
       const notif = await AsyncStorage.getItem('notificacoesAtivas');
@@ -29,14 +31,12 @@ export default function ConfigScreen() {
     } catch (e) { console.log('Erro ao carregar configurações'); }
   };
 
-  // 2. FUNÇÃO PARA MUDAR O CICLO DE VIDA DA PLANTA
   const mudarCiclo = async (valor: string) => {
     setCicloVida(valor);
     await AsyncStorage.setItem('cicloVida', valor);
     Alert.alert('Ciclo Atualizado', `Sua planta agora irá resetar de forma ${valor}.`);
   };
 
-  // 3. FUNÇÃO DO DESPERTADOR
   const alternarNotificacoes = async (valor: boolean) => {
     await Notifications.cancelAllScheduledNotificationsAsync();
     if (valor === true) {
@@ -52,7 +52,7 @@ export default function ConfigScreen() {
 
       await Notifications.scheduleNotificationAsync({
         content: { title: 'Sua planta está com sede! 🌱', body: 'Hora de cumprir suas metas!', sound: true },
-        trigger: { type: 'daily', hour: 10, minute: 0, repeats: true, channeId: 'jardim-avisos' } as any,
+        trigger: { hour: 10, minute: 0, repeats: true } as any,
       });
 
       setNotificacoesAtivas(true);
@@ -63,15 +63,11 @@ export default function ConfigScreen() {
     }
   };
 
-  // 4. FUNÇÃO DA DIFICULDADE
   const mudarDificuldade = async (valor: number) => {
     setMetaEscolhida(valor);
     await AsyncStorage.setItem('metaMaxima', valor.toString());
   };
 
-  // ==========================================
-  // FUNÇÕES RESTAURADAS: CRÉDITOS E LIMPEZA
-  // ==========================================
   const mostrarCreditos = () => {
     Alert.alert('Créditos', 'Desenvolvido por Carlos.\n\nAnimações por LottieFiles.');
   };
@@ -101,16 +97,24 @@ export default function ConfigScreen() {
         <Text style={styles.sessaoTitulo}>Jardim & Ciclo</Text>
         <View style={styles.card}>
           <View style={styles.blocoConfig}>
-            <Text style={styles.textoConfig}>Dificuldade (Gotas)</Text>
-            <View style={styles.linhaBotoesConfig}>
-              {[10, 20, 30].map(v => (
-                <TouchableOpacity key={v} style={[styles.botaoConfig, metaEscolhida === v && styles.botaoConfigAtivo]} onPress={() => mudarDificuldade(v)}>
-                  <Text style={[styles.textoBotaoConfig, metaEscolhida === v && styles.textoBotaoConfigAtivo]}>{v}</Text>
-                </TouchableOpacity>
-              ))}
+            
+            {/* A NOVA CATRACA DE DIFICULDADE */}
+            <Text style={styles.textoConfig}>Dificuldade (Gotas para 100%)</Text>
+            <View style={styles.areaCatraca}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollCatraca}>
+                {opcoesGotas.map(v => (
+                  <TouchableOpacity 
+                    key={v} 
+                    style={[styles.itemCatraca, metaEscolhida === v && styles.itemCatracaAtivo]} 
+                    onPress={() => mudarDificuldade(v)}
+                  >
+                    <Text style={[styles.textoCatraca, metaEscolhida === v && styles.textoCatracaAtivo]}>{v}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
-            <Text style={[styles.textoConfig, {marginTop: 20}]}>Reset Automático da Planta</Text>
+            <Text style={[styles.textoConfig, {marginTop: 24}]}>Reset Automático da Planta</Text>
             <View style={styles.linhaBotoesConfig}>
               <TouchableOpacity style={[styles.botaoConfig, cicloVida === 'diario' && styles.botaoConfigAtivo]} onPress={() => mudarCiclo('diario')}>
                 <Text style={[styles.textoBotaoConfig, cicloVida === 'diario' && styles.textoBotaoConfigAtivo]}>Diário</Text>
@@ -134,7 +138,7 @@ export default function ConfigScreen() {
           </View>
         </View>
 
-        {/* SESSÃO 3: SOBRE (CRÉDITOS RESTAURADOS) */}
+        {/* SESSÃO 3: SOBRE */}
         <Text style={styles.sessaoTitulo}>Sobre</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.linhaBotao} onPress={mostrarCreditos}>
@@ -148,7 +152,7 @@ export default function ConfigScreen() {
           </View>
         </View>
 
-        {/* SESSÃO 4: AVANÇADO (LIMPEZA RESTAURADA) */}
+        {/* SESSÃO 4: AVANÇADO */}
         <Text style={styles.sessaoTitulo}>Avançado</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.linhaBotao} onPress={limparDados}>
@@ -158,7 +162,6 @@ export default function ConfigScreen() {
 
       </ScrollView>
 
-      {/* BOTÃO VOLTAR */}
       <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
         <Text style={styles.textoBotaoVoltar}>Voltar ao Jardim</Text>
       </TouchableOpacity>
@@ -166,7 +169,6 @@ export default function ConfigScreen() {
   );
 }
 
-// ESTILOS ATUALIZADOS PARA SUPORTAR TUDO
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF9E6', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
   titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 24 },
@@ -180,11 +182,22 @@ const styles = StyleSheet.create({
   textoConfig: { fontSize: 16, color: '#5A5A5A', fontWeight: '500' },
   versaoTexto: { fontSize: 16, color: '#A0A0A0' },
   seta: { fontSize: 20, color: '#CCCCCC' },
+  
+  // ESTILOS DA NOVA CATRACA
+  areaCatraca: { marginTop: 12, height: 70 },
+  scrollCatraca: { alignItems: 'center', paddingRight: 20 },
+  itemCatraca: { backgroundColor: '#F0F0F0', borderRadius: 25, width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginRight: 12, borderWidth: 1, borderColor: '#E0E0E0' },
+  itemCatracaAtivo: { backgroundColor: '#8CB369', borderColor: '#8CB369', transform: [{ scale: 1.1 }], elevation: 4, shadowColor: '#8CB369', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },
+  textoCatraca: { fontWeight: 'bold', color: '#5A5A5A', fontSize: 16 },
+  textoCatracaAtivo: { color: '#FFFFFF', fontSize: 18 },
+
+  // BOTÕES ANTIGOS (Mantidos para o ciclo de vida)
   linhaBotoesConfig: { flexDirection: 'row', gap: 8, marginTop: 12 },
   botaoConfig: { flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: '#F0F0F0', alignItems: 'center' },
   botaoConfigAtivo: { backgroundColor: '#4A8DB7' },
   textoBotaoConfig: { fontWeight: 'bold', color: '#5A5A5A' },
   textoBotaoConfigAtivo: { color: '#FFFFFF' },
+  
   botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 16 },
   textoBotaoVoltar: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 }
 });

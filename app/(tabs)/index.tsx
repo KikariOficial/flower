@@ -107,61 +107,29 @@ export default function HomeScreen() {
   }, [aguaEstoque, metaMaxima]);
 
   useFocusEffect(
-      useCallback(() => {
-        const carregarJardim = async () => {
-          try {
-            // ... (seus outros carregamentos de estoque, metaMaxima, etc)
+    useCallback(() => {
+      const carregarJardim = async () => {
+        try {
+          // ... (suas lógicas anteriores de carregar a planta e o reset continuam aqui) ...
 
-            const hoje = new Date();
-            const hojeString = hoje.toISOString().split('T')[0];
-            
-            const ultimoReset = await AsyncStorage.getItem('ultimoResetPlanta');
-            const ciclo = await AsyncStorage.getItem('cicloVida') || 'diario';
-            const aguaSalva = await AsyncStorage.getItem('aguaNaPlanta');
-            let plantaAtual = aguaSalva ? parseInt(aguaSalva) : 0;
+          // 1. Busca no banco de dados a quantidade de água que ganhamos na tela de Metas
+          const aguaSalvaNoEstoque = await AsyncStorage.getItem('aguaEstoque');
+          
+          // 2. Se houver água salva, atualiza a variável que desenha o regador. Se não, define como 0.
+          if (aguaSalvaNoEstoque !== null) {
+            setAguaEstoque(parseInt(aguaSalvaNoEstoque)); // Certifique-se de que a variável de estado chama-se 'aguaEstoque' no seu componente
+          } else {
+            setAguaEstoque(0);
+          }
 
-            // LOGICA DE RESET AUTOMÁTICO
-            if (ultimoReset && ultimoReset !== hojeString) {
-              const dataAnterior = new Date(ultimoReset);
-              let deveResetar = false;
-
-              if (ciclo === 'diario') {
-                deveResetar = true; // Mudou o dia, reseta.
-              } else if (ciclo === 'semanal') {
-                // Verifica se mudou a semana (domingo a domingo) ou se passaram 7 dias
-                const diffTime = Math.abs(hoje.getTime() - dataAnterior.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays >= 7 || hoje.getDay() < dataAnterior.getDay()) deveResetar = true;
-              } else if (ciclo === 'mensal') {
-                if (hoje.getMonth() !== dataAnterior.getMonth()) deveResetar = true;
-              }
-
-              if (deveResetar) {
-                plantaAtual = 0;
-                await AsyncStorage.setItem('aguaNaPlanta', '0');
-                await AsyncStorage.setItem('ultimoResetPlanta', hojeString);
-                Alert.alert('Novo Ciclo! 🌱', `Seu ciclo ${ciclo} reiniciou. Vamos cultivar novamente?`);
-              }
-            } else if (!ultimoReset) {
-              // Primeira vez abrindo o app
-              await AsyncStorage.setItem('ultimoResetPlanta', hojeString);
-            }
-
-            setAguaNaPlanta(plantaAtual);
-            
-            // Anima a planta para o valor correto (0 se resetou, ou o valor salvo)
-            Animated.timing(progressoLottieAnimado, {
-              toValue: plantaAtual / metaMaxima,
-              duration: 1500,
-              useNativeDriver: false,
-            }).start();
-
-          } catch (e) { console.log('Erro ao carregar'); }
-        };
-        carregarJardim();
-      }, [metaMaxima])
-    );
-
+        } catch (e) { 
+          console.log('Erro ao carregar os dados do jardim:', e); 
+        }
+      };
+      
+      carregarJardim();
+    }, [])
+  );
   const irParaMetas = () => router.push('/metas'); 
 
   const regarPlanta = async () => {
