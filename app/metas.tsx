@@ -236,12 +236,18 @@ export default function MetasScreen() {
       </ScrollView>
 
       {/* BOTÕES INFERIORES */}
-      <TouchableOpacity style={styles.botaoNovaMeta} onPress={() => setModalVisivel(true)}>
-        <Text style={styles.textoBotaoNovaMeta}>+ Criar Nova Meta</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
-        <Text style={styles.textoBotaoVoltar}>Voltar para o Jardim</Text>
-      </TouchableOpacity>
+      {/* BOTÕES INFERIORES (Escondidos quando o Modal abre) */}
+      {!modalVisivel && (
+        <>
+          <TouchableOpacity style={styles.botaoNovaMeta} onPress={() => setModalVisivel(true)}>
+            <Text style={styles.textoBotaoNovaMeta}>+ Criar Nova Meta</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
+            <Text style={styles.textoBotaoVoltar}>Voltar para o Jardim</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {/* ========================================== */}
       {/* NOVO MODAL SOFISTICADO                     */}
