@@ -5,9 +5,48 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
+
+// Componente para uma gota individual
+const WaterDrop = ({ delay }: { delay: number }) => {
+  const animY = useRef(new Animated.Value(0)).current;
+  const animX = useRef(new Animated.Value(0)).current;
+  const animOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(animY, { toValue: 120, duration: 600, easing: Easing.linear, useNativeDriver: true }),
+          Animated.timing(animX, { toValue: (Math.random() - 0.5) * 40, duration: 600, useNativeDriver: true }),
+          Animated.timing(animOpacity, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(animOpacity, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [delay, animY, animX, animOpacity]);
+
+  return (
+    <Animated.Text
+      style={{
+        position: 'absolute',
+        fontSize: 20,
+        opacity: animOpacity,
+        transform: [{ translateY: animY }, { translateX: animX }],
+      }}
+    >
+      💧
+    </Animated.Text>
+  );
+};
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -16,14 +55,12 @@ export default function HomeScreen() {
   const [aguaEstoque, setAguaEstoque] = useState(0); 
   const [aguaNaPlanta, setAguaNaPlanta] = useState(0); 
   const [metaMaxima, setMetaMaxima] = useState(10); 
+  const [isWatering, setIsWatering] = useState(false);
 
   // Tamanhos responsivos
   const plantSize = width * 0.7;
   const sunSize = width * 0.2;
 
-  // ==========================================
-  // 1. O NOVO CÉREBRO DE ANIMAÇÃO (Animated.Value)
-  // ==========================================
   const larguraBarraAnimada = useRef(new Animated.Value(0)).current;
   const progressoLottieAnimado = useRef(new Animated.Value(0)).current;
 
@@ -38,9 +75,6 @@ export default function HomeScreen() {
 
   const porcentagemCrescimento = (aguaNaPlanta / metaMaxima) * 100;
 
-  // ==========================================
-  // 2. FUNÇÃO DE FLUTUAÇÃO CONTÍNUA (Loop)
-  // ==========================================
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -58,11 +92,8 @@ export default function HomeScreen() {
         }),
       ])
     ).start();
-  }, []);
+  }, [tempoFlutuacao]);
 
-  // ==========================================
-  // FUNÇÕES DE ÁUDIO
-  // ==========================================
   const tocarRegar = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(require('../../assets/regar.mp3'));
@@ -85,9 +116,6 @@ export default function HomeScreen() {
     } catch (e) { console.log('Erro áudio level up', e); }
   };
 
-  // ==========================================
-  // EFETOS VISUAIS E CARREGAMENTO
-  // ==========================================
   useEffect(() => {
     const porcentagemRegador = (aguaEstoque / metaMaxima) * 100;
     Animated.spring(larguraBarraAnimada, {
@@ -95,7 +123,7 @@ export default function HomeScreen() {
       useNativeDriver: false, 
       bounciness: 12, 
     }).start();
-  }, [aguaEstoque, metaMaxima]);
+  }, [aguaEstoque, metaMaxima, larguraBarraAnimada]);
 
   useFocusEffect(
     useCallback(() => {
@@ -135,7 +163,6 @@ export default function HomeScreen() {
             const valor = aguaSalva ? parseInt(aguaSalva) : 0;
             setAguaNaPlanta(valor);
             
-            // Sincronizar animações
             const progresso = valor / max;
             progressoLottieAnimado.setValue(progresso);
             
@@ -159,6 +186,8 @@ export default function HomeScreen() {
 
   const regarPlanta = async () => {
     if (aguaEstoque > 0 && aguaNaPlanta < metaMaxima) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
       const novoEstoque = aguaEstoque - 1;
       const novaAguaNaPlanta = aguaNaPlanta + 1;
       
@@ -167,6 +196,9 @@ export default function HomeScreen() {
 
       await AsyncStorage.setItem('aguaEstoque', novoEstoque.toString());
       await AsyncStorage.setItem('aguaNaPlanta', novaAguaNaPlanta.toString());
+
+      setIsWatering(true);
+      setTimeout(() => setIsWatering(false), 1200);
 
       const nivelAntigo = Math.floor((aguaNaPlanta / metaMaxima) * 100 / 25);
       const nivelNovo = Math.floor((novaAguaNaPlanta / metaMaxima) * 100 / 25);
@@ -299,6 +331,14 @@ export default function HomeScreen() {
         <View style={styles.bottomArea}>
           <TouchableOpacity style={styles.botaoRegador} onPress={regarPlanta} activeOpacity={0.7}>
             <Animated.Text style={[styles.wateringCanIcon, estiloRegadorAnimado]}>🚿</Animated.Text>
+            {isWatering && (
+              <View style={styles.containerGotas}>
+                <WaterDrop delay={0} />
+                <WaterDrop delay={200} />
+                <WaterDrop delay={400} />
+                <WaterDrop delay={600} />
+              </View>
+            )}
           </TouchableOpacity>
 
           <Text style={styles.waterLabel}>ÁGUA NO REGADOR: {aguaEstoque}</Text>
@@ -329,6 +369,7 @@ const styles = StyleSheet.create({
   cardStatus: { backgroundColor: 'rgba(255, 255, 255, 0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: -20 },
   statusText: { fontSize: 16, color: '#5A5A5A', textAlign: 'center', fontWeight: 'bold' },
   bottomArea: { alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.5)', padding: 20, marginHorizontal: 24, marginBottom: 20, borderRadius: 30 },
+  containerGotas: { position: 'absolute', top: 50, left: 10, width: 40, alignItems: 'center' },
   botaoRegador: { marginBottom: 15 },
   wateringCanIcon: { fontSize: 75 },
   waterLabel: { color: '#4A8DB7', fontWeight: 'bold', letterSpacing: 1, marginBottom: 10 },
