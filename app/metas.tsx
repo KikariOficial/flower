@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, Modal, Switch, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, Modal, Switch, Platform, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ==========================================
 // UTILITÁRIOS
@@ -34,6 +36,11 @@ export default function MetasScreen() {
   const [dataSelecionada, setDataSelecionada] = useState(formatarData(new Date()));
   const [diasCalendario] = useState(gerarDiasCalendario());
 
+  // Animação da Gota de Sucesso
+  const animGotaY = useRef(new Animated.Value(0)).current;
+  const animGotaOpacity = useRef(new Animated.Value(0)).current;
+  const [mostrarGota, setMostrarGota] = useState(false);
+
   // ==========================================
   // ESTADOS DO MODAL SOFISTICADO
   // ==========================================
@@ -43,10 +50,9 @@ export default function MetasScreen() {
   const [novaMetaTipo, setNovaMetaTipo] = useState('unica'); // unica, diaria, semanal, mensal
   const [novaMetaAlarme, setNovaMetaAlarme] = useState(false);
   
-  // Novos Estados do Relógio e Dias
   const [horaAlarme, setHoraAlarme] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [diasSelecionados, setDiasSelecionados] = useState<number[]>([]); // Ex: [1, 3, 5] para Seg, Qua, Sex
+  const [diasSelecionados, setDiasSelecionados] = useState<number[]>([]);
 
   const diasDaSemanaTexto = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
@@ -66,9 +72,6 @@ export default function MetasScreen() {
     await AsyncStorage.setItem('listaDeMetasCompleta', JSON.stringify(novaLista));
   };
 
-  // ==========================================
-  // LÓGICA DE AGENDAMENTO AVANÇADO
-  // ==========================================
   const salvarNovaMeta = async () => {
     if (novaMetaTexto.trim() === '') {
       Alert.alert('Aviso', 'O título da meta é obrigatório.');
@@ -91,17 +94,15 @@ export default function MetasScreen() {
       historico: [], 
       temAlarme: novaMetaAlarme,
       horaAlarme: formatadorHora,
-      diasAlarme: diasSelecionados // Guarda os dias específicos escolhidos
+      diasAlarme: diasSelecionados
     };
 
-    // MOTOR DE ALARMES MÚLTIPLOS
     if (novaMetaAlarme) {
       const hora = horaAlarme.getHours();
       const minuto = horaAlarme.getMinutes();
       
       try {
         if (novaMetaTipo === 'semanal') {
-          // Agenda um alarme diferente para CADA dia da semana selecionado!
           for (const dia of diasSelecionados) {
             await Notifications.scheduleNotificationAsync({
               content: { title: `Lembrete: ${novaMetaTexto} ⏰`, body: novaMetaDesc || 'Chegou a hora!', sound: true},
@@ -109,7 +110,6 @@ export default function MetasScreen() {
             });
           }
         } else {
-          // Diária ou Única
           await Notifications.scheduleNotificationAsync({
             content: { title: `Lembrete: ${novaMetaTexto} ⏰`, body: novaMetaDesc || 'Chegou a hora!', sound: true},
             trigger: { hour: hora, minute: minuto, repeats: novaMetaTipo === 'diaria' } as any 
@@ -147,12 +147,31 @@ export default function MetasScreen() {
     salvarListaNaMemoria(listaAtualizada);
 
     if (!isConcluidaHoje) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      setMostrarGota(true);
+      animGotaY.setValue(0);
+      animGotaOpacity.setValue(1);
+
+      Animated.timing(animGotaY, {
+        toValue: -150,
+        duration: 1000,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(animGotaOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => setMostrarGota(false));
+      });
+
       try {
         const aguaAtualString = await AsyncStorage.getItem('aguaEstoque');
         let aguaAtual = aguaAtualString ? parseInt(aguaAtualString) : 0;
         await AsyncStorage.setItem('aguaEstoque', (aguaAtual + 1).toString());
-        Alert.alert('Parabéns! 🎉', '+1 gota no seu regador 💧');
       } catch (e) {}
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -163,7 +182,6 @@ export default function MetasScreen() {
     if (meta.tipo === 'unica') return meta.dataCriacao === dataSelecionada;
     if (meta.tipo === 'diaria') return true;
     if (meta.tipo === 'semanal') {
-      // Se for semanal e tiver dias específicos configurados, checa se hoje é um desses dias
       const diaSemanaHoje = dataAtual.getDay();
       return meta.diasAlarme?.length > 0 ? meta.diasAlarme.includes(diaSemanaHoje) : dataMeta.getDay() === diaSemanaHoje;
     }
@@ -171,9 +189,8 @@ export default function MetasScreen() {
     return false;
   });
 
-  // FUNÇÕES DE INTERFACE DO ALARME
   const onChangeTime = (event: any, selectedDate?: Date) => {
-    setShowTimePicker(Platform.OS === 'ios'); // iOS mantém aberto, Android fecha após selecionar
+    setShowTimePicker(Platform.OS === 'ios');
     if (selectedDate) setHoraAlarme(selectedDate);
   };
 
@@ -186,10 +203,22 @@ export default function MetasScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.titulo}>Minhas Metas</Text>
 
-      {/* CALENDÁRIO */}
+      {mostrarGota && (
+        <Animated.View style={[
+          styles.gotaSucesso, 
+          { 
+            opacity: animGotaOpacity,
+            transform: [{ translateY: animGotaY }] 
+          }
+        ]}>
+          <Text style={{ fontSize: 60 }}>💧</Text>
+          <Text style={styles.textoGota}>+1 Gota!</Text>
+        </Animated.View>
+      )}
+
       <View style={styles.areaCalendario}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollCalendario}>
           {diasCalendario.map((dia) => {
@@ -204,7 +233,6 @@ export default function MetasScreen() {
         </ScrollView>
       </View>
 
-      {/* LISTA */}
       <ScrollView style={styles.listaScroll}>
         {metasDoDia.length === 0 ? (
           <Text style={styles.textoVazio}>Nenhuma meta para este dia.</Text>
@@ -235,10 +263,8 @@ export default function MetasScreen() {
         )}
       </ScrollView>
 
-      {/* BOTÕES INFERIORES */}
-      {/* BOTÕES INFERIORES (Escondidos quando o Modal abre) */}
       {!modalVisivel && (
-        <>
+        <View style={styles.areaBotoesFixos}>
           <TouchableOpacity style={styles.botaoNovaMeta} onPress={() => setModalVisivel(true)}>
             <Text style={styles.textoBotaoNovaMeta}>+ Criar Nova Meta</Text>
           </TouchableOpacity>
@@ -246,12 +272,9 @@ export default function MetasScreen() {
           <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
             <Text style={styles.textoBotaoVoltar}>Voltar para o Jardim</Text>
           </TouchableOpacity>
-        </>
+        </View>
       )}
 
-      {/* ========================================== */}
-      {/* NOVO MODAL SOFISTICADO                     */}
-      {/* ========================================== */}
       <Modal visible={modalVisivel} animationType="slide" transparent={true}>
         <View style={styles.modalFundo}>
           <View style={styles.modalCard}>
@@ -271,7 +294,6 @@ export default function MetasScreen() {
 
             <View style={styles.divisoriaModal} />
 
-            {/* SEÇÃO DO ALARME SOFISTICADA */}
             <View style={styles.linhaConfigModal}>
               <Text style={styles.modalLabel}>Lembrete de Alarme</Text>
               <Switch value={novaMetaAlarme} onValueChange={setNovaMetaAlarme} trackColor={{ false: '#E0E0E0', true: '#8CB369' }} thumbColor="#FFF" />
@@ -279,7 +301,6 @@ export default function MetasScreen() {
 
             {novaMetaAlarme && (
               <View style={styles.painelAlarme}>
-                {/* 1. RELÓGIO GIGANTE CLICÁVEL */}
                 <TouchableOpacity style={styles.btnRelogio} onPress={() => setShowTimePicker(true)}>
                   <Text style={styles.textoRelogio}>
                     {horaAlarme.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -291,7 +312,6 @@ export default function MetasScreen() {
                   <DateTimePicker value={horaAlarme} mode="time" is24Hour={true} display="spinner" onChange={onChangeTime} />
                 )}
 
-                {/* 2. SELETOR DE DIAS DA SEMANA (Aparece só se for Semanal) */}
                 {novaMetaTipo === 'semanal' && (
                   <View style={styles.seletorDias}>
                     <Text style={styles.modalLabelPequeno}>Quais dias?</Text>
@@ -317,12 +337,11 @@ export default function MetasScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // ... (Estilos da tela principal mantidos iguais, focaremos nos novos estilos do Modal)
   container: { flex: 1, backgroundColor: '#FFF9E6', paddingHorizontal: 24 },
   titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 20, marginTop: 10 },
   areaCalendario: { height: 80, marginBottom: 20 },
@@ -347,8 +366,8 @@ const styles = StyleSheet.create({
   botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 12, padding: 16, alignItems: 'center', elevation: 2 },
   textoBotaoVoltar: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 },
   areaBotoesFixos: { paddingVertical: 16 },
-
-  // NOVOS ESTILOS DO MODAL
+  gotaSucesso: { position: 'absolute', top: '50%', left: '40%', zIndex: 99, alignItems: 'center' },
+  textoGota: { color: '#4A8DB7', fontWeight: 'bold', fontSize: 20, marginTop: 5, textShadowColor: 'rgba(0, 0, 0, 0.1)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   modalFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFF', width: '100%', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, elevation: 10, maxHeight: '90%' },
   modalTitulo: { fontSize: 24, fontWeight: 'bold', color: '#8CB369', marginBottom: 16, textAlign: 'center' },
@@ -360,25 +379,19 @@ const styles = StyleSheet.create({
   textoBranco: { color: '#FFF', fontWeight: 'bold' },
   divisoriaModal: { height: 1, backgroundColor: '#E0E0E0', marginVertical: 16 },
   linhaConfigModal: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  
-  // PAINEL DO ALARME
   painelAlarme: { backgroundColor: '#F9F9F9', borderRadius: 16, padding: 16, marginTop: 12, borderWidth: 1, borderColor: '#E0E0E0', alignItems: 'center' },
   btnRelogio: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: '#8CB369', shadowColor: '#8CB369', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
   textoRelogio: { fontSize: 42, fontWeight: 'bold', color: '#5A5A5A', letterSpacing: 2 },
   textoSubRelogio: { fontSize: 12, color: '#A0A0A0', marginTop: 4 },
-  
-  // SELETOR DE DIAS DA SEMANA
   seletorDias: { width: '100%', marginTop: 16, alignItems: 'center' },
   modalLabelPequeno: { fontSize: 14, fontWeight: 'bold', color: '#A0A0A0', marginBottom: 8 },
   linhaDias: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', gap: 4 },
   bolinhaDia: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' },
-  bolinhaDiaAtiva: { backgroundColor: '#F4A261' }, // Cor laranja amigável para destacar os dias
+  bolinhaDiaAtiva: { backgroundColor: '#F4A261' },
   textoDia: { fontSize: 14, fontWeight: 'bold', color: '#5A5A5A' },
   textoDiaAtivo: { color: '#FFF' },
-
   linhaBotoesModal: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 24, marginBottom: Platform.OS === 'ios' ? 20 : 0 },
   btnCancelar: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: '#F0F0F0', alignItems: 'center' },
   btnSalvar: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: '#8CB369', alignItems: 'center' },
   textoBtnModal: { fontSize: 16, fontWeight: 'bold', color: '#5A5A5A' }
-}); color: '#5A5A5A' }
 });

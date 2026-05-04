@@ -1,20 +1,25 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert, Animated, Easing } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Alert, Animated, Easing, useWindowDimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import { Audio } from 'expo-av';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const AnimatedLottie = Animated.createAnimatedComponent(LottieView);
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
 
   const [aguaEstoque, setAguaEstoque] = useState(0); 
   const [aguaNaPlanta, setAguaNaPlanta] = useState(0); 
   const [metaMaxima, setMetaMaxima] = useState(10); 
-  const jaTocouPassaros = useRef(false);
+
+  // Tamanhos responsivos
+  const plantSize = width * 0.7;
+  const sunSize = width * 0.2;
 
   // ==========================================
   // 1. O NOVO CÉREBRO DE ANIMAÇÃO (Animated.Value)
@@ -22,16 +27,12 @@ export default function HomeScreen() {
   const larguraBarraAnimada = useRef(new Animated.Value(0)).current;
   const progressoLottieAnimado = useRef(new Animated.Value(0)).current;
 
-  // Animações de Entrada (Fade + Slide)
   const animEntradaSol = useRef(new Animated.Value(0)).current;
   const animEntradaLagarta = useRef(new Animated.Value(0)).current;
   const animEntradaPassaro = useRef(new Animated.Value(0)).current;
   const animEntradaBorboleta = useRef(new Animated.Value(0)).current;
 
-  // Animações Contínuas (Oscilação/Flutuação) - Usamos um único 'tempo' contínuo
   const tempoFlutuacao = useRef(new Animated.Value(0)).current;
-
-  // Animações Reativas (Clique)
   const escalaCardStatus = useRef(new Animated.Value(1)).current;
   const inclinacaoRegador = useRef(new Animated.Value(0)).current;
 
@@ -41,18 +42,17 @@ export default function HomeScreen() {
   // 2. FUNÇÃO DE FLUTUAÇÃO CONTÍNUA (Loop)
   // ==========================================
   useEffect(() => {
-    // Cria um loop infinito de 0 a 1 e volta, usando uma curva suave (Seno)
     Animated.loop(
       Animated.sequence([
         Animated.timing(tempoFlutuacao, {
           toValue: 1,
-          duration: 3000, // Leva 3 segundos para subir
-          easing: Easing.inOut(Easing.sin), // Movimento orgânico
+          duration: 3000,
+          easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
         Animated.timing(tempoFlutuacao, {
           toValue: 0,
-          duration: 3000, // Leva 3 segundos para descer
+          duration: 3000,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
@@ -63,19 +63,10 @@ export default function HomeScreen() {
   // ==========================================
   // FUNÇÕES DE ÁUDIO
   // ==========================================
-  const tocarPassaros = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(require('../../assets/passaros.mp3'));
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((status) => { if (status.isLoaded && status.didJustFinish) sound.unloadAsync(); });
-    } catch (e) { console.log('Erro áudio pássaros', e); }
-  };
-
   const tocarRegar = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(require('../../assets/regar.mp3'));
       await sound.playAsync();
-      
       setTimeout(async () => {
         const status = await sound.getStatusAsync();
         if (status.isLoaded) {
@@ -95,7 +86,7 @@ export default function HomeScreen() {
   };
 
   // ==========================================
-  // EFETIROS VISUAIS E CARREGAMENTO
+  // EFETOS VISUAIS E CARREGAMENTO
   // ==========================================
   useEffect(() => {
     const porcentagemRegador = (aguaEstoque / metaMaxima) * 100;
@@ -110,27 +101,61 @@ export default function HomeScreen() {
     useCallback(() => {
       const carregarJardim = async () => {
         try {
-          // ... (suas lógicas anteriores de carregar a planta e o reset continuam aqui) ...
+          const storedMax = await AsyncStorage.getItem('metaMaxima');
+          const max = storedMax ? parseInt(storedMax) : 10;
+          setMetaMaxima(max);
 
-          // 1. Busca no banco de dados a quantidade de água que ganhamos na tela de Metas
-          const aguaSalvaNoEstoque = await AsyncStorage.getItem('aguaEstoque');
-          
-          // 2. Se houver água salva, atualiza a variável que desenha o regador. Se não, define como 0.
-          if (aguaSalvaNoEstoque !== null) {
-            setAguaEstoque(parseInt(aguaSalvaNoEstoque)); // Certifique-se de que a variável de estado chama-se 'aguaEstoque' no seu componente
-          } else {
-            setAguaEstoque(0);
+          const ciclo = await AsyncStorage.getItem('cicloVida') || 'diario';
+          const ultimaDataReset = await AsyncStorage.getItem('ultimaDataReset');
+          const hoje = new Date();
+          const dataHojeString = hoje.toISOString().split('T')[0];
+
+          let precisaResetar = false;
+          if (ultimaDataReset && ultimaDataReset !== dataHojeString) {
+            const dataReset = new Date(ultimaDataReset);
+            const diffTime = Math.abs(hoje.getTime() - dataReset.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (ciclo === 'diario') precisaResetar = true;
+            else if (ciclo === 'semanal' && diffDays >= 7) precisaResetar = true;
+            else if (ciclo === 'mensal' && hoje.getMonth() !== dataReset.getMonth()) precisaResetar = true;
           }
 
+          if (precisaResetar) {
+            await AsyncStorage.setItem('aguaNaPlanta', '0');
+            await AsyncStorage.setItem('ultimaDataReset', dataHojeString);
+            setAguaNaPlanta(0);
+            progressoLottieAnimado.setValue(0);
+            animEntradaSol.setValue(0);
+            animEntradaLagarta.setValue(0);
+            animEntradaPassaro.setValue(0);
+            animEntradaBorboleta.setValue(0);
+          } else {
+            const aguaSalva = await AsyncStorage.getItem('aguaNaPlanta');
+            const valor = aguaSalva ? parseInt(aguaSalva) : 0;
+            setAguaNaPlanta(valor);
+            
+            // Sincronizar animações
+            const progresso = valor / max;
+            progressoLottieAnimado.setValue(progresso);
+            
+            if (progresso >= 0.25) animEntradaSol.setValue(1);
+            if (progresso >= 0.50) animEntradaLagarta.setValue(1);
+            if (progresso >= 0.75) animEntradaPassaro.setValue(1);
+            if (progresso >= 1.0) animEntradaBorboleta.setValue(1);
+          }
+
+          const estoque = await AsyncStorage.getItem('aguaEstoque');
+          setAguaEstoque(estoque ? parseInt(estoque) : 0);
+
         } catch (e) { 
-          console.log('Erro ao carregar os dados do jardim:', e); 
+          console.log('Erro ao carregar dados:', e); 
         }
       };
       
       carregarJardim();
-    }, [])
+    }, [progressoLottieAnimado, animEntradaSol, animEntradaLagarta, animEntradaPassaro, animEntradaBorboleta])
   );
-  const irParaMetas = () => router.push('/metas'); 
 
   const regarPlanta = async () => {
     if (aguaEstoque > 0 && aguaNaPlanta < metaMaxima) {
@@ -143,15 +168,11 @@ export default function HomeScreen() {
       await AsyncStorage.setItem('aguaEstoque', novoEstoque.toString());
       await AsyncStorage.setItem('aguaNaPlanta', novaAguaNaPlanta.toString());
 
-      // LÓGICA DOS SONS (Level Up vs Regador)
-      const porcentagemAntiga = (aguaNaPlanta / metaMaxima) * 100;
-      const novaPorcentagem = (novaAguaNaPlanta / metaMaxima) * 100;
-      const nivelAntigo = Math.floor(porcentagemAntiga / 25);
-      const nivelNovo = Math.floor(novaPorcentagem / 25);
+      const nivelAntigo = Math.floor((aguaNaPlanta / metaMaxima) * 100 / 25);
+      const nivelNovo = Math.floor((novaAguaNaPlanta / metaMaxima) * 100 / 25);
 
       if (nivelNovo > nivelAntigo) {
         tocarLevelUp();
-        // DISPARA A ANIMAÇÃO DE ENTRADA DO NOVO ANIMAL
         if (nivelNovo === 1) Animated.spring(animEntradaSol, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
         if (nivelNovo === 2) Animated.spring(animEntradaLagarta, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
         if (nivelNovo === 3) Animated.spring(animEntradaPassaro, { toValue: 1, tension: 10, friction: 3, useNativeDriver: true }).start();
@@ -160,10 +181,9 @@ export default function HomeScreen() {
         tocarRegar();
       }
 
-      // 3. ANIMAÇÃO REATIVA DO REGADOR (Inclinação)
       Animated.sequence([
-        Animated.timing(inclinacaoRegador, { toValue: 1, duration: 150, useNativeDriver: true }), // Inclina
-        Animated.timing(inclinacaoRegador, { toValue: 0, duration: 400, useNativeDriver: true }), // Volta
+        Animated.timing(inclinacaoRegador, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(inclinacaoRegador, { toValue: 0, duration: 400, useNativeDriver: true }),
       ]).start();
 
       Animated.timing(progressoLottieAnimado, {
@@ -185,7 +205,6 @@ export default function HomeScreen() {
       { text: 'Sim, Zerar!', onPress: async () => {
           setAguaNaPlanta(0); 
           await AsyncStorage.setItem('aguaNaPlanta', '0'); 
-          // Rebobina a animação visual e ESCONDE o ecossistema
           Animated.timing(progressoLottieAnimado, { toValue: 0, duration: 1500, useNativeDriver: false }).start();
           Animated.timing(animEntradaSol, { toValue: 0, duration: 500, useNativeDriver: true }).start();
           Animated.timing(animEntradaLagarta, { toValue: 0, duration: 500, useNativeDriver: true }).start();
@@ -196,28 +215,21 @@ export default function HomeScreen() {
     ]);
   };
 
-  // Animação reativa do Card (Pulso ao segurar)
   const animarCardPress = () => {
     Animated.sequence([
       Animated.timing(escalaCardStatus, { toValue: 1.1, duration: 100, useNativeDriver: true }),
       Animated.timing(escalaCardStatus, { toValue: 1, duration: 100, useNativeDriver: true }),
-    ]).start(resetarPlanta); // Só reseta no fim da animação
+    ]).start(resetarPlanta);
   };
 
-  // ==========================================
-  // 3. DEFINIÇÃO DOS ESTILOS ANIMADOS
-  // ==========================================
-  
-  // Sol ☀️: Combina oscilação vertical + entrada suave
   const estiloSolAnimado = {
     opacity: animEntradaSol,
     transform: [
-      { translateY: animEntradaSol.interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }, // Slide up na entrada
-      { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -15] }) } // Oscilação contínua (15px)
+      { translateY: animEntradaSol.interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) },
+      { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -15] }) }
     ]
   };
 
-  // Lagarta 🐛: Oscilação menor (mais pesada)
   const estiloLagartaAnimada = {
     opacity: animEntradaLagarta,
     transform: [
@@ -226,7 +238,6 @@ export default function HomeScreen() {
     ]
   };
 
-  // Pássaro 🐦: Oscilação maior (mais leve)
   const estiloPassaroAnimado = {
     opacity: animEntradaPassaro,
     transform: [
@@ -235,17 +246,15 @@ export default function HomeScreen() {
     ]
   };
 
-  // Borboleta 🦋: Movimento errático (combina slide horizontal sutil)
   const estiloBorboletaAnimada = {
     opacity: animEntradaBorboleta,
     transform: [
       { translateY: animEntradaBorboleta.interpolate({ inputRange: [0, 1], outputRange: [100, 0] }) },
       { translateY: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) },
-      { translateX: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [-5, 5] }) } // Balanço lateral
+      { translateX: tempoFlutuacao.interpolate({ inputRange: [0, 1], outputRange: [-5, 5] }) }
     ]
   };
 
-  // Regador 🚿: Inclinação reativa (-30 graus)
   const estiloRegadorAnimado = {
     transform: [{
       rotate: inclinacaoRegador.interpolate({
@@ -258,21 +267,17 @@ export default function HomeScreen() {
   return (
     <LinearGradient colors={['#E9F5E9', '#FFF9E6', '#FFE4B5']} style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.botaoCirculo} onPress={() => router.push('/config')}>
             <Text style={styles.iconText}>≡</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.botaoCirculo} onPress={irParaMetas}>
+          <TouchableOpacity style={styles.botaoCirculo} onPress={() => router.push('/metas')}>
             <Text style={styles.iconText}>+</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.centerArea}>
-          {/* ========================================== */}
-          {/* 4. ECOSSISTEMA MÁGICO E ANIMADO          */}
-          {/* ========================================== */}
           <Animated.Text style={[styles.sunIcon, { fontSize: sunSize }, estiloSolAnimado]}>☀️</Animated.Text>
           <Animated.Text style={[styles.lagartaIcon, estiloLagartaAnimada]}>🐛</Animated.Text>
           <Animated.Text style={[styles.passaroIcon, estiloPassaroAnimado]}>🐦</Animated.Text>
@@ -308,20 +313,18 @@ export default function HomeScreen() {
       </SafeAreaView>
     </LinearGradient>
   );
-  }
+}
 
-  const styles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: { flex: 1 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 10 },
   botaoCirculo: { backgroundColor: '#FFFFFF', width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   iconText: { fontSize: 24, color: '#8CB369', fontWeight: 'bold' },
   centerArea: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-
   sunIcon: { position: 'absolute', top: '5%', left: '5%', opacity: 0.8 },
   passaroIcon: { fontSize: 40, position: 'absolute', top: '10%', right: '10%' },
   lagartaIcon: { fontSize: 30, position: 'absolute', bottom: '25%', left: '15%' },
   borboletaIcon: { fontSize: 50, position: 'absolute', top: '20%', left: '10%' },
-
   lottiePlant: { marginBottom: 20 },
   cardStatus: { backgroundColor: 'rgba(255, 255, 255, 0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: -20 },
   statusText: { fontSize: 16, color: '#5A5A5A', textAlign: 'center', fontWeight: 'bold' },
@@ -329,9 +332,6 @@ export default function HomeScreen() {
   botaoRegador: { marginBottom: 15 },
   wateringCanIcon: { fontSize: 75 },
   waterLabel: { color: '#4A8DB7', fontWeight: 'bold', letterSpacing: 1, marginBottom: 10 },
-  progressBarBackground: { width: '100%', height: 24, backgroundColor: '#E0E0E0', borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF' },
-  progressBarFill: { height: '100%', backgroundColor: '#4A8DB7', borderRadius: 10 },
-  });ntWeight: 'bold', letterSpacing: 1, marginBottom: 10 },
   progressBarBackground: { width: '100%', height: 24, backgroundColor: '#E0E0E0', borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF' },
   progressBarFill: { height: '100%', backgroundColor: '#4A8DB7', borderRadius: 10 },
 });
