@@ -361,6 +361,7 @@ const styles = StyleSheet.create({
   botaoCirculo: { backgroundColor: '#FFFFFF', width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   iconText: { fontSize: 24, color: '#8CB369', fontWeight: 'bold' },
   centerArea: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  nomePlantaTexto: { fontSize: 24, fontWeight: 'bold', color: '#8CB369', position: 'absolute', top: 10, zIndex: 10 },
   sunIcon: { position: 'absolute', top: '5%', left: '5%', opacity: 0.8 },
   passaroIcon: { fontSize: 40, position: 'absolute', top: '10%', right: '10%' },
   lagartaIcon: { fontSize: 30, position: 'absolute', bottom: '25%', left: '15%' },

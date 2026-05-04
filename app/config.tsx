@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert, Platform, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
@@ -11,8 +11,15 @@ export default function ConfigScreen() {
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(false);
   const [metaEscolhida, setMetaEscolhida] = useState(10); 
   const [cicloVida, setCicloVida] = useState('diario'); 
+  const [nomePlanta, setNomePlanta] = useState('Minha Planta');
+  const [tipoPlanta, setTipoPlanta] = useState('padrao'); // padrao, cacto, girassol
 
-  // A nossa nova lista para a catraca (de 10 até 100)
+  const tiposDisponiveis = [
+    { id: 'padrao', nome: 'Planta Comum', emoji: '🌱' },
+    { id: 'cacto', nome: 'Cacto', emoji: '🌵' },
+    { id: 'girassol', nome: 'Girassol', emoji: '🌻' },
+  ];
+
   const opcoesGotas = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
   useEffect(() => {
@@ -29,7 +36,23 @@ export default function ConfigScreen() {
 
       const ciclo = await AsyncStorage.getItem('cicloVida');
       if (ciclo) setCicloVida(ciclo);
+
+      const nome = await AsyncStorage.getItem('nomePlanta');
+      if (nome) setNomePlanta(nome);
+
+      const tipo = await AsyncStorage.getItem('tipoPlanta');
+      if (tipo) setTipoPlanta(tipo);
     } catch (e) { console.log('Erro ao carregar configurações'); }
+  };
+
+  const mudarNome = async (novoNome: string) => {
+    setNomePlanta(novoNome);
+    await AsyncStorage.setItem('nomePlanta', novoNome);
+  };
+
+  const mudarTipo = async (tipo: string) => {
+    setTipoPlanta(tipo);
+    await AsyncStorage.setItem('tipoPlanta', tipo);
   };
 
   const mudarCiclo = async (valor: string) => {
@@ -89,11 +112,39 @@ export default function ConfigScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.titulo}>Configurações</Text>
       
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         
+        {/* SESSÃO 0: PERSONALIZAÇÃO */}
+        <Text style={styles.sessaoTitulo}>Personalização</Text>
+        <View style={styles.card}>
+          <View style={styles.blocoConfig}>
+            <Text style={styles.textoConfig}>Nome da sua planta</Text>
+            <TextInput 
+              style={styles.inputNome} 
+              value={nomePlanta} 
+              onChangeText={mudarNome} 
+              placeholder="Ex: Florzinha"
+            />
+
+            <Text style={[styles.textoConfig, {marginTop: 20}]}>Tipo de Planta</Text>
+            <View style={styles.linhaTipos}>
+              {tiposDisponiveis.map((item) => (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={[styles.itemTipo, tipoPlanta === item.id && styles.itemTipoAtivo]} 
+                  onPress={() => mudarTipo(item.id)}
+                >
+                  <Text style={{fontSize: 24}}>{item.emoji}</Text>
+                  <Text style={[styles.textoItemTipo, tipoPlanta === item.id && styles.textoBranco]}>{item.nome}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
         {/* SESSÃO 1: JARDIM E CICLO */}
         <Text style={styles.sessaoTitulo}>Jardim & Ciclo</Text>
         <View style={styles.card}>
@@ -166,7 +217,7 @@ export default function ConfigScreen() {
       <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
         <Text style={styles.textoBotaoVoltar}>Voltar ao Jardim</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -199,6 +250,14 @@ const styles = StyleSheet.create({
   textoBotaoConfig: { fontWeight: 'bold', color: '#5A5A5A' },
   textoBotaoConfigAtivo: { color: '#FFFFFF' },
   
+  // ESTILOS DE PERSONALIZAÇÃO
+  inputNome: { backgroundColor: '#F5F5F5', borderRadius: 10, padding: 12, fontSize: 16, marginTop: 8, borderWidth: 1, borderColor: '#E0E0E0', color: '#5A5A5A' },
+  linhaTipos: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  itemTipo: { flex: 1, backgroundColor: '#F0F0F0', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0' },
+  itemTipoAtivo: { backgroundColor: '#8CB369', borderColor: '#8CB369', elevation: 3 },
+  textoItemTipo: { fontSize: 12, fontWeight: 'bold', color: '#5A5A5A', marginTop: 4 },
+  textoBranco: { color: '#FFFFFF' },
+
   botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 16 },
   textoBotaoVoltar: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 }
 });
