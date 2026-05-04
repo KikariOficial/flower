@@ -259,78 +259,79 @@ export default function HomeScreen() {
     <LinearGradient colors={['#E9F5E9', '#FFF9E6', '#FFE4B5']} style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
 
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.botaoCirculo} onPress={() => router.push('/config')}>
-          <Text style={styles.iconText}>≡</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.botaoCirculo} onPress={irParaMetas}>
-          <Text style={styles.iconText}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.centerArea}>
-        {/* ========================================== */}
-        {/* 4. ECOSSISTEMA MÁGICO E ANIMADO          */}
-        {/* ========================================== */}
-        {/* Usamos Animated.Text para aplicar os estilos complexos */}
-        <Animated.Text style={[styles.sunIcon, estiloSolAnimado]}>☀️</Animated.Text>
-        <Animated.Text style={[styles.lagartaIcon, estiloLagartaAnimada]}>🐛</Animated.Text>
-        <Animated.Text style={[styles.passaroIcon, estiloPassaroAnimado]}>🐦</Animated.Text>
-        <Animated.Text style={[styles.borboletaIcon, estiloBorboletaAnimada]}>🦋</Animated.Text>
-        
-        <AnimatedLottie
-          source={require('../../assets/planta.json')} 
-          style={styles.lottiePlant}
-          progress={progressoLottieAnimado} 
-        />
-        
-        {/* Card reativo (Pulso) e gatilho LongPress */}
-        <Animated.View style={{ transform: [{ scale: escalaCardStatus }] }}>
-          <TouchableOpacity style={styles.cardStatus} onLongPress={animarCardPress} delayLongPress={800}>
-            <Text style={styles.statusText}>Progresso: {Math.floor(porcentagemCrescimento)}%</Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.botaoCirculo} onPress={() => router.push('/config')}>
+            <Text style={styles.iconText}>≡</Text>
           </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      <View style={styles.bottomArea}>
-        {/* Regador reativo (Inclinação) */}
-        <TouchableOpacity style={styles.botaoRegador} onPress={regarPlanta} activeOpacity={0.7}>
-          <Animated.Text style={[styles.wateringCanIcon, estiloRegadorAnimado]}>🚿</Animated.Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.waterLabel}>ÁGUA NO REGADOR: {aguaEstoque}</Text>
-        
-        <View style={styles.progressBarBackground}>
-          <Animated.View style={[
-            styles.progressBarFill, 
-            { width: larguraBarraAnimada.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }
-          ]} />
+          <TouchableOpacity style={styles.botaoCirculo} onPress={irParaMetas}>
+            <Text style={styles.iconText}>+</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+
+        <View style={styles.centerArea}>
+          {/* ========================================== */}
+          {/* 4. ECOSSISTEMA MÁGICO E ANIMADO          */}
+          {/* ========================================== */}
+          <Animated.Text style={[styles.sunIcon, { fontSize: sunSize }, estiloSolAnimado]}>☀️</Animated.Text>
+          <Animated.Text style={[styles.lagartaIcon, estiloLagartaAnimada]}>🐛</Animated.Text>
+          <Animated.Text style={[styles.passaroIcon, estiloPassaroAnimado]}>🐦</Animated.Text>
+          <Animated.Text style={[styles.borboletaIcon, estiloBorboletaAnimada]}>🦋</Animated.Text>
+
+          <AnimatedLottie
+            source={require('../../assets/planta.json')} 
+            style={[styles.lottiePlant, { width: plantSize, height: plantSize }]}
+            progress={progressoLottieAnimado} 
+          />
+
+          <Animated.View style={{ transform: [{ scale: escalaCardStatus }] }}>
+            <TouchableOpacity style={styles.cardStatus} onLongPress={animarCardPress} delayLongPress={800}>
+              <Text style={styles.statusText}>Progresso: {Math.floor(porcentagemCrescimento)}%</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+
+        <View style={styles.bottomArea}>
+          <TouchableOpacity style={styles.botaoRegador} onPress={regarPlanta} activeOpacity={0.7}>
+            <Animated.Text style={[styles.wateringCanIcon, estiloRegadorAnimado]}>🚿</Animated.Text>
+          </TouchableOpacity>
+
+          <Text style={styles.waterLabel}>ÁGUA NO REGADOR: {aguaEstoque}</Text>
+
+          <View style={styles.progressBarBackground}>
+            <Animated.View style={[
+              styles.progressBarFill, 
+              { width: larguraBarraAnimada.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }
+            ]} />
+          </View>
+        </View>
+      </SafeAreaView>
     </LinearGradient>
   );
-}
+  }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, paddingHorizontal: 24, paddingBottom: 40, justifyContent: 'space-between' },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between' },
+  const styles = StyleSheet.create({
+  container: { flex: 1 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 10 },
   botaoCirculo: { backgroundColor: '#FFFFFF', width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   iconText: { fontSize: 24, color: '#8CB369', fontWeight: 'bold' },
   centerArea: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  
-  // Posicionamento base dos ícones do Ecossistema
-  sunIcon: { fontSize: 80, position: 'absolute', top: 10, left: 0, opacity: 0.8 },
-  passaroIcon: { fontSize: 40, position: 'absolute', top: 50, right: 20 },
-  lagartaIcon: { fontSize: 30, position: 'absolute', bottom: 120, left: 40 },
-  borboletaIcon: { fontSize: 50, position: 'absolute', top: 100, left: 50 },
-  
-  lottiePlant: { width: 280, height: 280, marginBottom: 20 },
+
+  sunIcon: { position: 'absolute', top: '5%', left: '5%', opacity: 0.8 },
+  passaroIcon: { fontSize: 40, position: 'absolute', top: '10%', right: '10%' },
+  lagartaIcon: { fontSize: 30, position: 'absolute', bottom: '25%', left: '15%' },
+  borboletaIcon: { fontSize: 50, position: 'absolute', top: '20%', left: '10%' },
+
+  lottiePlant: { marginBottom: 20 },
   cardStatus: { backgroundColor: 'rgba(255, 255, 255, 0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: -20 },
   statusText: { fontSize: 16, color: '#5A5A5A', textAlign: 'center', fontWeight: 'bold' },
-  bottomArea: { alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.5)', padding: 20, borderRadius: 30 },
+  bottomArea: { alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.5)', padding: 20, marginHorizontal: 24, marginBottom: 20, borderRadius: 30 },
   botaoRegador: { marginBottom: 15 },
   wateringCanIcon: { fontSize: 75 },
   waterLabel: { color: '#4A8DB7', fontWeight: 'bold', letterSpacing: 1, marginBottom: 10 },
+  progressBarBackground: { width: '100%', height: 24, backgroundColor: '#E0E0E0', borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF' },
+  progressBarFill: { height: '100%', backgroundColor: '#4A8DB7', borderRadius: 10 },
+  });ntWeight: 'bold', letterSpacing: 1, marginBottom: 10 },
   progressBarBackground: { width: '100%', height: 24, backgroundColor: '#E0E0E0', borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF' },
   progressBarFill: { height: '100%', backgroundColor: '#4A8DB7', borderRadius: 10 },
 });

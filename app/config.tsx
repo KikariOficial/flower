@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert, Pl
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ConfigScreen() {
   const router = useRouter();

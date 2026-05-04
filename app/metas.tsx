@@ -323,8 +323,8 @@ export default function MetasScreen() {
 
 const styles = StyleSheet.create({
   // ... (Estilos da tela principal mantidos iguais, focaremos nos novos estilos do Modal)
-  container: { flex: 1, backgroundColor: '#FFF9E6', paddingTop: 60, paddingHorizontal: 24, paddingBottom: 40 },
-  titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 20 },
+  container: { flex: 1, backgroundColor: '#FFF9E6', paddingHorizontal: 24 },
+  titulo: { fontSize: 28, fontWeight: 'bold', color: '#8CB369', textAlign: 'center', marginBottom: 20, marginTop: 10 },
   areaCalendario: { height: 80, marginBottom: 20 },
   scrollCalendario: { paddingRight: 20 },
   diaCard: { backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 16, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E0E0E0', minWidth: 65 },
@@ -342,10 +342,11 @@ const styles = StyleSheet.create({
   descMeta: { fontSize: 14, color: '#888', marginTop: 2 },
   badgeTipo: { fontSize: 11, color: '#4A8DB7', marginTop: 6, fontWeight: 'bold' },
   iconeLixeira: { fontSize: 24, paddingLeft: 12 },
-  botaoNovaMeta: { backgroundColor: '#8CB369', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 },
+  botaoNovaMeta: { backgroundColor: '#8CB369', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12, elevation: 2 },
   textoBotaoNovaMeta: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 },
-  botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 12, padding: 16, alignItems: 'center' },
+  botaoVoltar: { backgroundColor: '#4A8DB7', borderRadius: 12, padding: 16, alignItems: 'center', elevation: 2 },
   textoBotaoVoltar: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 18 },
+  areaBotoesFixos: { paddingVertical: 16 },
 
   // NOVOS ESTILOS DO MODAL
   modalFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -379,4 +380,5 @@ const styles = StyleSheet.create({
   btnCancelar: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: '#F0F0F0', alignItems: 'center' },
   btnSalvar: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: '#8CB369', alignItems: 'center' },
   textoBtnModal: { fontSize: 16, fontWeight: 'bold', color: '#5A5A5A' }
+}); color: '#5A5A5A' }
 });
